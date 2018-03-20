@@ -1,0 +1,23 @@
+[package]
+name = "cargo_culture"
+version = "0.1.0"
+authors = ["ZackPierce <zacharypierce@gmail.com>"]
+
+[lib]
+name = "cargo_culture"
+path = "src/lib.rs"
+
+[[bin]]
+name = "cargo-culture"
+path = "src/bin/cargo-culture.rs"
+
+[dependencies]
+clap = "2.20"
+cargo_metadata = "0.5.3"
+colored = "1.6"
+regex = "0.2"
+structopt = "0.2"
+
+[dev-dependencies]
+tempdir = "0.3"
+proptest = "0.5.1"
