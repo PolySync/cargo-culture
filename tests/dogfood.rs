@@ -20,6 +20,7 @@ fn cargo_culture_project_should_pass_its_own_scrutiny() {
             let outcome = check_culture(&Opt {
                 manifest_path: PathBuf::from("./Cargo.toml"),
                 verbose: false,
+                color: cargo_culture::rule::Color::Never,
             }, &mut v);
 
             assert_eq!(RuleOutcome::Success, outcome);

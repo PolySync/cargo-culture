@@ -12,7 +12,7 @@ pub struct CargoMetadataReadable;
 
 impl Rule for CargoMetadataReadable {
     fn catch_phrase(&self) -> &'static str {
-        "Should include a well-formed Cargo.toml readable by `cargo metadata`"
+        "Should have a well-formed Cargo.toml file readable by `cargo metadata`"
     }
 
     fn evaluate(&self, _: &Opt, metadata: &Option<Metadata>) -> RuleOutcome {
@@ -32,7 +32,7 @@ pub struct HasContinuousIntegrationFile;
 
 impl Rule for HasContinuousIntegrationFile {
     fn catch_phrase(&self) -> &'static str {
-        "Should contain a file suggesting the use of a continuous integration system."
+        "Should have a file suggesting the use of a continuous integration system."
     }
 
     fn evaluate(&self, opt: &Opt, _: &Option<Metadata>) -> RuleOutcome {

@@ -18,7 +18,7 @@ impl Default for HasContributingFile {
 
 impl Rule for HasContributingFile {
     fn catch_phrase(&self) -> &'static str {
-        "Should contain a CONTRIBUTING file in the project root directory."
+        "Should have a CONTRIBUTING file in the project root directory."
     }
 
     fn evaluate(&self, opt: &Opt, _: &Option<Metadata>) -> RuleOutcome {
@@ -41,7 +41,7 @@ impl Default for HasLicenseFile {
 
 impl Rule for HasLicenseFile {
     fn catch_phrase(&self) -> &'static str {
-        "Should contain a LICENSE file in the project root directory."
+        "Should have a LICENSE file in the project root directory."
     }
 
     fn evaluate(&self, opt: &Opt, _: &Option<Metadata>) -> RuleOutcome {
