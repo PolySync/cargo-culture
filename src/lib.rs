@@ -8,30 +8,28 @@ extern crate proptest;
 #[macro_use]
 extern crate structopt;
 
-#[macro_use]
-extern crate clap;
-
 extern crate cargo_metadata;
 extern crate colored;
 
 extern crate regex;
 
 mod file;
-mod rule;
+pub mod rule;
 mod collaboration;
 mod build_infra;
-
 
 use build_infra::*;
 use collaboration::*;
 pub use rule::*;
 
+use cargo_metadata::Metadata;
 use colored::*;
+use std::borrow::Borrow;
 use std::path::PathBuf;
 use std::io::Write;
 
-
-pub fn check_culture<W: Write>(opt: &Opt, mut output: W) -> RuleOutcome {
+pub fn check_culture<O: Borrow<Opt>, W: Write>(opt: O, mut print_output: W) -> RuleOutcome {
+    // TODO - move default rules to a lazy_static
     let rules: Vec<Box<Rule>> = vec![
         Box::new(HasReadmeFile::default()),
         Box::new(HasContributingFile::default()),
@@ -43,68 +41,194 @@ pub fn check_culture<W: Write>(opt: &Opt, mut output: W) -> RuleOutcome {
         Box::new(PassesMultipleTests::default()),
     ];
 
+    let metadata_option = read_cargo_metadata(opt.borrow(), &mut print_output);
+    let outcome_stats = evaluate_rules(
+        opt.borrow(),
+        &mut print_output,
+        rules.as_slice(),
+        &metadata_option,
+    );
+    let conclusion = if outcome_stats.is_success() {
+        "ok".green()
+    } else {
+        "FAILED".red()
+    };
+    writeln!(
+        print_output,
+        "culture result: {}. {} passed. {} failed. {} undetermined.",
+        conclusion,
+        outcome_stats.success_count,
+        outcome_stats.fail_count,
+        outcome_stats.unknown_count
+    ).expect("Error reporting culture check summary.");
+
+    RuleOutcome::from(&outcome_stats)
+}
+
+fn read_cargo_metadata<O: Borrow<Opt>, W: Write>(opt: O, print_output: &mut W) -> Option<Metadata> {
     // TODO - will need to do some more forgiving custom metadata parsing to deal with changes
     // in cargo metadata format -- the current crate assumes you're on a recent nightly, where workspace_root has been added
-    let manifest_path: PathBuf = opt.manifest_path.clone();
+    let manifest_path: PathBuf = opt.borrow().manifest_path.clone();
     let metadata_result = cargo_metadata::metadata(Some(manifest_path.as_ref()));
-    let metadata_option = match metadata_result {
+    match metadata_result {
         Ok(m) => Some(m),
         Err(e) => {
-            if opt.verbose {
-                writeln!(output, "{}", e).expect("Error reporting project's `cargo metadata`");
+            if opt.borrow().verbose {
+                writeln!(print_output, "{}", e)
+                    .expect("Error reporting project's `cargo metadata`");
             }
             None
         }
-    };
+    }
+}
 
-    let mut success_count = 0;
-    let mut fail_count = 0;
-    let mut unknown_count = 0;
-    for rule in rules.into_iter() {
-        let outcome = rule.evaluate(&opt, &metadata_option);
-        print_outcome(&*rule, &outcome, &mut output);
+pub fn evaluate_rules<O: Borrow<Opt>, W: Write, M: Borrow<Option<Metadata>>>(
+    opt: O,
+    print_output: &mut W,
+    rules: &[Box<Rule>],
+    metadata: M,
+) -> OutcomeStats {
+    let mut stats = OutcomeStats::empty();
+    for rule in rules {
+        let outcome = rule.evaluate(opt.borrow(), metadata.borrow());
+        print_outcome(rule.as_ref(), &outcome, print_output);
         match outcome {
-            RuleOutcome::Success => {
-                success_count += 1;
-            }
-            RuleOutcome::Failure => {
-                fail_count += 1;
-            }
-            RuleOutcome::Undetermined => {
-                unknown_count += 1;
-            }
+            RuleOutcome::Success => stats.success_count += 1,
+            RuleOutcome::Failure => stats.fail_count += 1,
+            RuleOutcome::Undetermined => stats.unknown_count += 1,
         }
     }
-    let any_bad = fail_count > 0 || unknown_count > 0;
-    let conclusion = if any_bad { "FAILED".red() } else { "ok".green() };
-    writeln!(output, "culture result: {}. {} passed. {} failed. {} undetermined.",
-             conclusion,
-             success_count, fail_count, unknown_count)
-        .expect("Error reporting culture check summary.");
-
-    match (success_count, fail_count, unknown_count) {
-        (_, 0, 0) => RuleOutcome::Success,
-        (_, 0, _) => RuleOutcome::Undetermined,
-        (_, f, _) if f > 0 => RuleOutcome::Failure,
-        _ => unreachable!()
-    }
+    stats
 }
 
 fn print_outcome(rule: &Rule, outcome: &RuleOutcome, output: &mut Write) {
-    writeln!(output, "{} ... {}", rule.catch_phrase(), summary_str(outcome))
-        .expect("Could not write rule outcome");
+    writeln!(
+        output,
+        "{} ... {}",
+        rule.catch_phrase(),
+        summary_str(outcome)
+    ).expect("Could not write rule outcome");
 }
 
-fn summary_str(outcome: &RuleOutcome) -> colored::ColoredString {
-    match *outcome {
-        RuleOutcome::Success => {
-            "ok".green()
+fn summary_str<T: Borrow<RuleOutcome>>(outcome: T) -> colored::ColoredString {
+    match *outcome.borrow() {
+        RuleOutcome::Success => "ok".green(),
+        RuleOutcome::Failure => "FAILED".red(),
+        RuleOutcome::Undetermined => "UNDETERMINED".red(),
+    }
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct OutcomeStats {
+    pub success_count: usize,
+    pub fail_count: usize,
+    pub unknown_count: usize,
+}
+
+impl OutcomeStats {
+    pub fn is_success(&self) -> bool {
+        self.fail_count == 0 && self.unknown_count == 0 && self.success_count > 0
+    }
+}
+
+impl<T> From<T> for RuleOutcome
+where
+    T: Borrow<OutcomeStats>,
+{
+    fn from(stats: T) -> Self {
+        let s = stats.borrow();
+        match (s.success_count, s.fail_count, s.unknown_count) {
+            (_, 0, 0) => RuleOutcome::Success,
+            (_, 0, _) => RuleOutcome::Undetermined,
+            (_, f, _) if f > 0 => RuleOutcome::Failure,
+            _ => unreachable!(),
         }
-        RuleOutcome::Failure => {
-            "FAILED".red()
+    }
+}
+
+impl OutcomeStats {
+    pub fn empty() -> Self {
+        OutcomeStats {
+            success_count: 0,
+            fail_count: 0,
+            unknown_count: 0,
         }
-        RuleOutcome::Undetermined => {
-            "UNDETERMINED".red()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use proptest::prelude::*;
+    use proptest::collection::VecStrategy;
+    use std::path::PathBuf;
+
+    fn arb_rule_outcome() -> BoxedStrategy<RuleOutcome> {
+        prop_oneof![
+            Just(RuleOutcome::Success),
+            Just(RuleOutcome::Undetermined),
+            Just(RuleOutcome::Failure),
+        ].boxed()
+    }
+
+    prop_compose! {
+        fn arb_stats()(success in any::<usize>(), fail in any::<usize>(), unknown in any::<usize>()) -> OutcomeStats {
+            OutcomeStats { success_count: success, fail_count: fail, unknown_count: unknown }
+        }
+    }
+
+    prop_compose! {
+        fn arb_predetermined_rule()(fixed_outcome in arb_rule_outcome(), catch_phrase in ".*") -> PredeterminedOutcomeRule {
+            PredeterminedOutcomeRule { outcome: fixed_outcome, catch_phrase: catch_phrase.into_boxed_str() }
+        }
+    }
+
+    prop_compose! {
+        fn arb_rule()(rule in arb_predetermined_rule()) -> Box<Rule> {
+            let b: Box<Rule> = Box::new(rule);
+            b
+        }
+    }
+
+    prop_compose! {
+        fn arb_opt()(verbose in any::<bool>()) -> Opt {
+            // TODO - generate manifest_path properly
+            Opt {
+                verbose: verbose, manifest_path: PathBuf::from("./Cargo.toml")
+            }
+        }
+    }
+
+    fn arb_vec_of_rules() -> VecStrategy<BoxedStrategy<Box<Rule>>> {
+        prop::collection::vec(arb_rule(), 0..100)
+    }
+
+    #[derive(Clone, Debug, PartialEq)]
+    struct PredeterminedOutcomeRule {
+        outcome: RuleOutcome,
+        catch_phrase: Box<str>,
+    }
+
+    impl Rule for PredeterminedOutcomeRule {
+        fn catch_phrase(&self) -> &str {
+            self.catch_phrase.as_ref()
+        }
+
+        fn evaluate(&self, _: &Opt, _: &Option<Metadata>) -> RuleOutcome {
+            self.outcome.clone()
+        }
+    }
+
+    proptest! {
+        #[test]
+        fn outcome_stats_to_rule_outcome_never_panics(ref stats in arb_stats()) {
+            let _rule_outcome:RuleOutcome = RuleOutcome::from(stats);
+        }
+
+        #[test]
+        fn piles_of_fixed_outcome_rules_evaluable(ref opt in arb_opt(), ref vec_of_rules in arb_vec_of_rules()) {
+            let mut v:Vec<u8> = Vec::new();
+            let _outcome:RuleOutcome = evaluate_rules(opt, &mut v, vec_of_rules, &None).into();
         }
     }
 }

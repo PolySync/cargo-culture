@@ -35,7 +35,10 @@ pub fn file_present(path: &Path) -> FilePresence {
     FilePresence::Present
 }
 
-pub fn shallow_scan_project_dir_for_file_name_match(regex: &Regex, manifest_path: &PathBuf) -> RuleOutcome {
+pub fn shallow_scan_project_dir_for_file_name_match(
+    regex: &Regex,
+    manifest_path: &PathBuf,
+) -> RuleOutcome {
     use std::fs::read_dir;
     let project_dir = {
         let mut project_dir = manifest_path.clone();
@@ -47,9 +50,7 @@ pub fn shallow_scan_project_dir_for_file_name_match(regex: &Regex, manifest_path
     }
     let mut entry_unreadable = false;
     let dir = match read_dir(project_dir) {
-        Ok(d) => {
-            d
-        }
+        Ok(d) => d,
         Err(_) => {
             return RuleOutcome::Undetermined;
         }

@@ -1,23 +1,33 @@
 use regex::Regex;
+use std::fmt;
 
 use rule::*;
 use file::{file_present, shallow_scan_project_dir_for_file_name_match};
 use cargo_metadata::Metadata;
 
+// TODO - move Regex instances to lazy_static blocks
+
 pub struct HasContributingFile {
-    regex: Regex
+    regex: Regex,
+}
+
+impl fmt::Debug for HasContributingFile {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "HasContributingFile")
+    }
 }
 
 impl Default for HasContributingFile {
     fn default() -> Self {
         HasContributingFile {
-            regex: Regex::new(r"^(?i)CONTRIBUTING").expect("Failed to create HasContributingFile regex.")
+            regex: Regex::new(r"^(?i)CONTRIBUTING")
+                .expect("Failed to create HasContributingFile regex."),
         }
     }
 }
 
 impl Rule for HasContributingFile {
-    fn catch_phrase(&self) -> &'static str {
+    fn catch_phrase(&self) -> &str {
         "Should have a CONTRIBUTING file in the project root directory."
     }
 
@@ -26,15 +36,20 @@ impl Rule for HasContributingFile {
     }
 }
 
-
 pub struct HasLicenseFile {
-    regex: Regex
+    regex: Regex,
+}
+
+impl fmt::Debug for HasLicenseFile {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "HasLicenseFile")
+    }
 }
 
 impl Default for HasLicenseFile {
     fn default() -> Self {
         HasLicenseFile {
-            regex: Regex::new(r"^(?i)LICENSE").expect("Failed to create HasLicenseFile regex.")
+            regex: Regex::new(r"^(?i)LICENSE").expect("Failed to create HasLicenseFile regex."),
         }
     }
 }
@@ -49,7 +64,7 @@ impl Rule for HasLicenseFile {
     }
 }
 
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct HasReadmeFile;
 
 impl Rule for HasReadmeFile {

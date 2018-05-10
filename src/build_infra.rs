@@ -1,13 +1,13 @@
 use regex::Regex;
 
 use rule::*;
-use file::{file_present, FilePresence};
 use cargo_metadata::{DependencyKind, Metadata};
+use file::{file_present, FilePresence};
+use std::fmt;
 use std::process::Command;
 use std::str::from_utf8;
 
-
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct CargoMetadataReadable;
 
 impl Rule for CargoMetadataReadable {
@@ -17,17 +17,13 @@ impl Rule for CargoMetadataReadable {
 
     fn evaluate(&self, _: &Opt, metadata: &Option<Metadata>) -> RuleOutcome {
         match *metadata {
-            None => {
-                RuleOutcome::Failure
-            }
-            Some(_) => {
-                RuleOutcome::Success
-            }
+            None => RuleOutcome::Failure,
+            Some(_) => RuleOutcome::Success,
         }
     }
 }
 
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct HasContinuousIntegrationFile;
 
 impl Rule for HasContinuousIntegrationFile {
@@ -44,8 +40,14 @@ impl Rule for HasContinuousIntegrationFile {
         if !project_dir.is_dir() {
             return RuleOutcome::Undetermined;
         }
-        let files = vec!["appveyor.yml", ".appveyor.yml", ".drone.yml", ".gitlab-ci.yml", ".travis.yml"];
-        for file in files.into_iter() {
+        let files = vec![
+            "appveyor.yml",
+            ".appveyor.yml",
+            ".drone.yml",
+            ".gitlab-ci.yml",
+            ".travis.yml",
+        ];
+        for file in files {
             let ci_file_presence = file_present(&project_dir.clone().join(file));
             if let FilePresence::Present = ci_file_presence {
                 return RuleOutcome::Success;
@@ -53,20 +55,27 @@ impl Rule for HasContinuousIntegrationFile {
         }
         // TODO - if all are undeterminable, report that
         // TODO - consider providing more verbose feedback for empties?
-        return RuleOutcome::Failure;
+        RuleOutcome::Failure
     }
 }
 
 pub struct UsesPropertyBasedTestLibrary {
-    regex: Regex
+    regex: Regex,
 }
 
 impl Default for UsesPropertyBasedTestLibrary {
     fn default() -> Self {
         // TODO - expand regex to incorporate more possible PBT libraries
         UsesPropertyBasedTestLibrary {
-            regex: Regex::new(r"^(?i)(proptest)|(quickcheck).*").expect("Failed to create UsesPropertyBasedTestLibrary regex.")
+            regex: Regex::new(r"^(?i)(proptest)|(quickcheck).*")
+                .expect("Failed to create UsesPropertyBasedTestLibrary regex."),
         }
+    }
+}
+
+impl fmt::Debug for UsesPropertyBasedTestLibrary {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "UsesPropertyBasedTestLibrary")
     }
 }
 
@@ -77,18 +86,17 @@ impl Rule for UsesPropertyBasedTestLibrary {
 
     fn evaluate(&self, _: &Opt, metadata: &Option<Metadata>) -> RuleOutcome {
         match *metadata {
-            None => {
-                RuleOutcome::Undetermined
-            }
+            None => RuleOutcome::Undetermined,
             Some(ref m) => {
                 if m.packages.is_empty() {
                     return RuleOutcome::Undetermined;
                 }
-                for package in m.packages.iter() {
-                    let has_pbt_dep = package.dependencies.iter()
+                for package in &m.packages {
+                    let has_pbt_dep = package
+                        .dependencies
+                        .iter()
                         .filter(|d| d.kind == DependencyKind::Development)
-                        .find(|d| self.regex.is_match(&d.name))
-                        .is_some();
+                        .any(|d| self.regex.is_match(&d.name));
                     if !has_pbt_dep {
                         return RuleOutcome::Failure;
                     }
@@ -100,13 +108,20 @@ impl Rule for UsesPropertyBasedTestLibrary {
 }
 
 pub struct BuildsCleanlyWithoutWarningsOrErrors {
-    warning_json_regex: Regex
+    warning_json_regex: Regex,
+}
+
+impl fmt::Debug for BuildsCleanlyWithoutWarningsOrErrors {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "BuildsCleanlyWithoutWarningsOrErrors")
+    }
 }
 
 impl Default for BuildsCleanlyWithoutWarningsOrErrors {
     fn default() -> Self {
         BuildsCleanlyWithoutWarningsOrErrors {
-            warning_json_regex: Regex::new(".*\"level\":\"warning\".*").expect("Failed to create BuildsCleanlyWithoutWarningsOrErrors regex.")
+            warning_json_regex: Regex::new(".*\"level\":\"warning\".*")
+                .expect("Failed to create BuildsCleanlyWithoutWarningsOrErrors regex."),
         }
     }
 }
@@ -127,7 +142,7 @@ fn clean_packages(cargo_command: &str, opt: &Opt, metadata: &Option<Metadata>) -
         }
         Some(ref m) => {
             let mut all_cleaned = true;
-            for p in m.packages.iter() {
+            for p in &m.packages {
                 let cleaned = clean_package(cargo_command, &p.name, opt);
                 if !cleaned && opt.verbose {
                     eprintln!("Could not clean package {} .", &p.name);
@@ -142,11 +157,13 @@ fn clean_packages(cargo_command: &str, opt: &Opt, metadata: &Option<Metadata>) -
 fn clean_package(cargo_command: &str, package_name: &str, opt: &Opt) -> bool {
     let mut clean_cmd = Command::new(&cargo_command);
     clean_cmd.arg("clean");
-    clean_cmd.arg("--manifest-path").arg(opt.manifest_path.clone().as_os_str());
+    clean_cmd
+        .arg("--manifest-path")
+        .arg(opt.manifest_path.clone().as_os_str());
     clean_cmd.arg("--package").arg(package_name);
     //let command_str = format!("{:?}", clean_cmd); // TODO - DEBUG - DELETE
     let clean_output = match clean_cmd.output() {
-        Ok(o) => { o }
+        Ok(o) => o,
         Err(e) => {
             if opt.verbose {
                 eprintln!("{}", e);
@@ -187,16 +204,18 @@ impl Rule for BuildsCleanlyWithoutWarningsOrErrors {
         let cargo = get_cargo_command();
         let packages_cleaned = clean_packages(&cargo, opt, metadata);
         if !packages_cleaned {
-            return RuleOutcome::Failure
+            return RuleOutcome::Failure;
         }
 
         let mut build_cmd = Command::new(&cargo);
         build_cmd.arg("build");
-        build_cmd.arg("--manifest-path").arg(opt.manifest_path.clone().as_os_str());
+        build_cmd
+            .arg("--manifest-path")
+            .arg(opt.manifest_path.clone().as_os_str());
         build_cmd.arg("--message-format=json");
         let command_str = format!("{:?}", build_cmd);
         let build_output = match build_cmd.output() {
-            Ok(o) => { o }
+            Ok(o) => o,
             Err(e) => {
                 if opt.verbose {
                     // TODO - DEBUG - DELETE
@@ -209,17 +228,30 @@ impl Rule for BuildsCleanlyWithoutWarningsOrErrors {
             if opt.verbose {
                 // TODO - DEBUG - DELETE
                 eprintln!("Build command `{}` failed", command_str);
-                eprintln!("`{}` StdOut: {}", command_str, String::from_utf8(build_output.stdout).expect("Could not interpret `cargo build` stdout"));
-                eprintln!("`{}` StdErr: {}", command_str, String::from_utf8(build_output.stderr).expect("Could not interpret `cargo build` stderr"));
+                eprintln!(
+                    "`{}` StdOut: {}",
+                    command_str,
+                    String::from_utf8(build_output.stdout)
+                        .expect("Could not interpret `cargo build` stdout")
+                );
+                eprintln!(
+                    "`{}` StdErr: {}",
+                    command_str,
+                    String::from_utf8(build_output.stderr)
+                        .expect("Could not interpret `cargo build` stderr")
+                );
             }
             return RuleOutcome::Failure;
         }
         let stdout = match from_utf8(&build_output.stdout) {
-            Ok(stdout) => { stdout }
+            Ok(stdout) => stdout,
             Err(e) => {
                 if opt.verbose {
                     // TODO - DEBUG - DELETE
-                    eprintln!("Reading stdout for command `{}` failed : {}", command_str, e);
+                    eprintln!(
+                        "Reading stdout for command `{}` failed : {}",
+                        command_str, e
+                    );
                 }
                 return RuleOutcome::Undetermined;
             }
@@ -232,7 +264,7 @@ impl Rule for BuildsCleanlyWithoutWarningsOrErrors {
     }
 }
 
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct PassesMultipleTests;
 
 impl Rule for PassesMultipleTests {
@@ -244,17 +276,17 @@ impl Rule for PassesMultipleTests {
         let cargo = get_cargo_command();
         let mut test_cmd = Command::new(&cargo);
         test_cmd.arg("test");
-        test_cmd.arg("--manifest-path").arg(opt.manifest_path.clone().as_os_str());
+        test_cmd
+            .arg("--manifest-path")
+            .arg(opt.manifest_path.clone().as_os_str());
         test_cmd.arg("--message-format").arg("json");
         test_cmd.env("CARGO_CULTURE_TEST_RECURSION_BUSTER", "true");
         match test_cmd.output() {
             Ok(_) => {
                 // TODO - parse to confirm that the number of tests exceeds 1
                 RuleOutcome::Success
-            },
-            Err(_) => {
-                RuleOutcome::Failure
-            },
+            }
+            Err(_) => RuleOutcome::Failure,
         }
     }
 }
