@@ -23,7 +23,14 @@ fn cargo_culture_project_should_pass_its_own_scrutiny() {
                 &mut v,
             );
 
-            assert_eq!(RuleOutcome::Success, outcome);
+            assert_eq!(
+                OutcomeStats {
+                    success_count: 9,
+                    fail_count: 0,
+                    unknown_count: 0,
+                },
+                outcome
+            );
         }
     }
 }

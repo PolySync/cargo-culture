@@ -1,8 +1,8 @@
+use super::RuleOutcome;
+use regex::Regex;
 use std::convert::From;
 use std::io::ErrorKind;
 use std::path::{Path, PathBuf};
-use super::RuleOutcome;
-use regex::Regex;
 
 #[derive(Debug, PartialEq)]
 pub enum FilePresence {

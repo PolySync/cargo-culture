@@ -6,6 +6,9 @@ extern crate tempdir;
 extern crate proptest;
 
 #[macro_use]
+extern crate lazy_static;
+
+#[macro_use]
 extern crate structopt;
 
 extern crate cargo_metadata;
@@ -13,10 +16,10 @@ extern crate colored;
 
 extern crate regex;
 
+mod build_infra;
+mod collaboration;
 mod file;
 pub mod rule;
-mod collaboration;
-mod build_infra;
 
 use build_infra::*;
 use collaboration::*;
@@ -25,21 +28,25 @@ pub use rule::*;
 use cargo_metadata::Metadata;
 use colored::*;
 use std::borrow::Borrow;
-use std::path::PathBuf;
 use std::io::Write;
+use std::path::PathBuf;
 
-pub fn check_culture<O: Borrow<Opt>, W: Write>(opt: O, mut print_output: W) -> RuleOutcome {
-    // TODO - move default rules to a lazy_static
-    let rules: Vec<Box<Rule>> = vec![
-        Box::new(HasReadmeFile::default()),
+pub fn default_rules() -> Vec<Box<Rule>> {
+    vec![
+        Box::new(CargoMetadataReadable::default()),
         Box::new(HasContributingFile::default()),
         Box::new(HasLicenseFile::default()),
-        Box::new(CargoMetadataReadable::default()),
+        Box::new(HasReadmeFile::default()),
+        Box::new(HasRustfmtFile::default()),
         Box::new(BuildsCleanlyWithoutWarningsOrErrors::default()),
         Box::new(HasContinuousIntegrationFile::default()),
         Box::new(UsesPropertyBasedTestLibrary::default()),
         Box::new(PassesMultipleTests::default()),
-    ];
+    ]
+}
+
+pub fn check_culture<O: Borrow<Opt>, W: Write>(opt: O, mut print_output: W) -> OutcomeStats {
+    let rules: Vec<Box<Rule>> = default_rules();
 
     let metadata_option = read_cargo_metadata(opt.borrow(), &mut print_output);
     let outcome_stats = evaluate_rules(
@@ -62,12 +69,13 @@ pub fn check_culture<O: Borrow<Opt>, W: Write>(opt: O, mut print_output: W) -> R
         outcome_stats.unknown_count
     ).expect("Error reporting culture check summary.");
 
-    RuleOutcome::from(&outcome_stats)
+    outcome_stats
 }
 
 fn read_cargo_metadata<O: Borrow<Opt>, W: Write>(opt: O, print_output: &mut W) -> Option<Metadata> {
-    // TODO - will need to do some more forgiving custom metadata parsing to deal with changes
-    // in cargo metadata format -- the current crate assumes you're on a recent nightly, where workspace_root has been added
+    // TODO - will need to do some more forgiving custom metadata parsing to deal
+    // with changes in cargo metadata format -- the current crate assumes
+    // you're on a recent nightly, where workspace_root has been added
     let manifest_path: PathBuf = opt.borrow().manifest_path.clone();
     let metadata_result = cargo_metadata::metadata(Some(manifest_path.as_ref()));
     match metadata_result {
@@ -118,6 +126,8 @@ fn summary_str<T: Borrow<RuleOutcome>>(outcome: T) -> colored::ColoredString {
     }
 }
 
+/// Summary of result statistics generated from aggregating `RuleOutcome`s
+/// results
 #[derive(Clone, Debug, PartialEq)]
 pub struct OutcomeStats {
     pub success_count: usize,
@@ -126,8 +136,11 @@ pub struct OutcomeStats {
 }
 
 impl OutcomeStats {
+    /// Convenience function to answer the simple question "is everything all
+    /// right?" while providing no answer at all to the useful question
+    /// "why or why not?"
     pub fn is_success(&self) -> bool {
-        self.fail_count == 0 && self.unknown_count == 0 && self.success_count > 0
+        RuleOutcome::from(self) == RuleOutcome::Success
     }
 }
 
@@ -138,7 +151,8 @@ where
     fn from(stats: T) -> Self {
         let s = stats.borrow();
         match (s.success_count, s.fail_count, s.unknown_count) {
-            (_, 0, 0) => RuleOutcome::Success,
+            (0, 0, 0) => RuleOutcome::Undetermined,
+            (s, 0, 0) if s > 0 => RuleOutcome::Success,
             (_, 0, _) => RuleOutcome::Undetermined,
             (_, f, _) if f > 0 => RuleOutcome::Failure,
             _ => unreachable!(),
@@ -156,11 +170,31 @@ impl OutcomeStats {
     }
 }
 
+pub trait ExitCode {
+    fn exit_code(&self) -> i32;
+}
+
+impl ExitCode for RuleOutcome {
+    fn exit_code(&self) -> i32 {
+        match *self {
+            RuleOutcome::Success => 0,
+            RuleOutcome::Failure => 1,
+            RuleOutcome::Undetermined => 2,
+        }
+    }
+}
+
+impl ExitCode for OutcomeStats {
+    fn exit_code(&self) -> i32 {
+        RuleOutcome::from(self).exit_code()
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
-    use proptest::prelude::*;
     use proptest::collection::VecStrategy;
+    use proptest::prelude::*;
     use std::path::PathBuf;
 
     fn arb_rule_outcome() -> BoxedStrategy<RuleOutcome> {
@@ -172,14 +206,18 @@ mod tests {
     }
 
     prop_compose! {
-        fn arb_stats()(success in any::<usize>(), fail in any::<usize>(), unknown in any::<usize>()) -> OutcomeStats {
+        fn arb_stats()(success in any::<usize>(),
+                       fail in any::<usize>(),
+                        unknown in any::<usize>()) -> OutcomeStats {
             OutcomeStats { success_count: success, fail_count: fail, unknown_count: unknown }
         }
     }
 
     prop_compose! {
-        fn arb_predetermined_rule()(fixed_outcome in arb_rule_outcome(), catch_phrase in ".*") -> PredeterminedOutcomeRule {
-            PredeterminedOutcomeRule { outcome: fixed_outcome, catch_phrase: catch_phrase.into_boxed_str() }
+        fn arb_predetermined_rule()(fixed_outcome in arb_rule_outcome(),
+                                    catch_phrase in ".*") -> PredeterminedOutcomeRule {
+            PredeterminedOutcomeRule { outcome: fixed_outcome,
+            catch_phrase: catch_phrase.into_boxed_str() }
         }
     }
 
@@ -226,7 +264,8 @@ mod tests {
         }
 
         #[test]
-        fn piles_of_fixed_outcome_rules_evaluable(ref opt in arb_opt(), ref vec_of_rules in arb_vec_of_rules()) {
+        fn piles_of_fixed_outcome_rules_evaluable(ref opt in arb_opt(),
+                                                  ref vec_of_rules in arb_vec_of_rules()) {
             let mut v:Vec<u8> = Vec::new();
             let _outcome:RuleOutcome = evaluate_rules(opt, &mut v, vec_of_rules, &None).into();
         }

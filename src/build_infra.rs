@@ -1,9 +1,8 @@
 use regex::Regex;
 
-use rule::*;
 use cargo_metadata::{DependencyKind, Metadata};
 use file::{file_present, FilePresence};
-use std::fmt;
+use rule::*;
 use std::process::Command;
 use std::str::from_utf8;
 
@@ -59,24 +58,12 @@ impl Rule for HasContinuousIntegrationFile {
     }
 }
 
-pub struct UsesPropertyBasedTestLibrary {
-    regex: Regex,
-}
+#[derive(Debug, Default)]
+pub struct UsesPropertyBasedTestLibrary;
 
-impl Default for UsesPropertyBasedTestLibrary {
-    fn default() -> Self {
-        // TODO - expand regex to incorporate more possible PBT libraries
-        UsesPropertyBasedTestLibrary {
-            regex: Regex::new(r"^(?i)(proptest)|(quickcheck).*")
-                .expect("Failed to create UsesPropertyBasedTestLibrary regex."),
-        }
-    }
-}
-
-impl fmt::Debug for UsesPropertyBasedTestLibrary {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "UsesPropertyBasedTestLibrary")
-    }
+lazy_static! {
+    static ref USES_PROPERTY_BASED_TEST_LIBRARY: Regex = Regex::new(r"^(?i)(proptest)|(quickcheck).*")
+        .expect("Failed to create UsesPropertyBasedTestLibrary regex.");
 }
 
 impl Rule for UsesPropertyBasedTestLibrary {
@@ -96,7 +83,7 @@ impl Rule for UsesPropertyBasedTestLibrary {
                         .dependencies
                         .iter()
                         .filter(|d| d.kind == DependencyKind::Development)
-                        .any(|d| self.regex.is_match(&d.name));
+                        .any(|d| USES_PROPERTY_BASED_TEST_LIBRARY.is_match(&d.name));
                     if !has_pbt_dep {
                         return RuleOutcome::Failure;
                     }
@@ -107,23 +94,12 @@ impl Rule for UsesPropertyBasedTestLibrary {
     }
 }
 
-pub struct BuildsCleanlyWithoutWarningsOrErrors {
-    warning_json_regex: Regex,
-}
+#[derive(Debug, Default)]
+pub struct BuildsCleanlyWithoutWarningsOrErrors;
 
-impl fmt::Debug for BuildsCleanlyWithoutWarningsOrErrors {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "BuildsCleanlyWithoutWarningsOrErrors")
-    }
-}
-
-impl Default for BuildsCleanlyWithoutWarningsOrErrors {
-    fn default() -> Self {
-        BuildsCleanlyWithoutWarningsOrErrors {
-            warning_json_regex: Regex::new(".*\"level\":\"warning\".*")
-                .expect("Failed to create BuildsCleanlyWithoutWarningsOrErrors regex."),
-        }
-    }
+lazy_static! {
+    static ref WARNING_JSON: Regex = Regex::new(".*\"level\":\"warning\".*")
+        .expect("Failed to create BuildsCleanlyWithoutWarningsOrErrors regex.");
 }
 
 fn clean_packages(cargo_command: &str, opt: &Opt, metadata: &Option<Metadata>) -> bool {
@@ -176,16 +152,22 @@ fn clean_package(cargo_command: &str, package_name: &str, opt: &Opt) -> bool {
         if opt.verbose {
             // TODO - DEBUG - DELETE
             //eprintln!("Clean command failed!");
-            //eprintln!("`{}` StdOut: {}", command_str, String::from_utf8(clean_output.stdout).expect("Could not interpret `cargo clean` stdout"));
-            //eprintln!("`{}` StdErr: {}", command_str, String::from_utf8(clean_output.stderr).expect("Could not interpret `cargo clean` stderr"));
+            //eprintln!("`{}` StdOut: {}", command_str,
+            // String::from_utf8(clean_output.stdout).expect("Could not interpret `cargo
+            // clean` stdout")); eprintln!("`{}` StdErr: {}", command_str,
+            // String::from_utf8(clean_output.stderr).expect("Could not interpret `cargo
+            // clean` stderr"));
         }
         false
     } else {
         if opt.verbose {
             // TODO - DEBUG - DELETE
             //eprintln!("Clean command succeeded!");
-            //eprintln!("`{}` StdOut: {}", command_str, String::from_utf8(clean_output.stdout).expect("Could not interpret `cargo clean` stdout"));
-            //eprintln!("`{}` StdErr: {}", command_str, String::from_utf8(clean_output.stderr).expect("Could not interpret `cargo clean` stderr"));
+            //eprintln!("`{}` StdOut: {}", command_str,
+            // String::from_utf8(clean_output.stdout).expect("Could not interpret `cargo
+            // clean` stdout")); eprintln!("`{}` StdErr: {}", command_str,
+            // String::from_utf8(clean_output.stderr).expect("Could not interpret `cargo
+            // clean` stderr"));
         }
         true
     }
@@ -257,7 +239,7 @@ impl Rule for BuildsCleanlyWithoutWarningsOrErrors {
             }
         };
 
-        if self.warning_json_regex.is_match(stdout) {
+        if WARNING_JSON.is_match(stdout) {
             return RuleOutcome::Failure;
         }
         RuleOutcome::Success
