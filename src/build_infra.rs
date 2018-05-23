@@ -62,7 +62,7 @@ impl Rule for HasContinuousIntegrationFile {
 pub struct UsesPropertyBasedTestLibrary;
 
 lazy_static! {
-    static ref USES_PROPERTY_BASED_TEST_LIBRARY: Regex = Regex::new(r"^(?i)(proptest)|(quickcheck).*")
+    static ref USES_PROPERTY_BASED_TEST_LIBRARY: Regex = Regex::new(r"^(?i)(proptest)|(quickcheck)|(suppositions).*")
         .expect("Failed to create UsesPropertyBasedTestLibrary regex.");
 }
 
@@ -137,7 +137,6 @@ fn clean_package(cargo_command: &str, package_name: &str, opt: &Opt) -> bool {
         .arg("--manifest-path")
         .arg(opt.manifest_path.clone().as_os_str());
     clean_cmd.arg("--package").arg(package_name);
-    //let command_str = format!("{:?}", clean_cmd); // TODO - DEBUG - DELETE
     let clean_output = match clean_cmd.output() {
         Ok(o) => o,
         Err(e) => {
@@ -147,30 +146,7 @@ fn clean_package(cargo_command: &str, package_name: &str, opt: &Opt) -> bool {
             return false;
         }
     };
-
-    if !clean_output.status.success() {
-        if opt.verbose {
-            // TODO - DEBUG - DELETE
-            //eprintln!("Clean command failed!");
-            //eprintln!("`{}` StdOut: {}", command_str,
-            // String::from_utf8(clean_output.stdout).expect("Could not interpret `cargo
-            // clean` stdout")); eprintln!("`{}` StdErr: {}", command_str,
-            // String::from_utf8(clean_output.stderr).expect("Could not interpret `cargo
-            // clean` stderr"));
-        }
-        false
-    } else {
-        if opt.verbose {
-            // TODO - DEBUG - DELETE
-            //eprintln!("Clean command succeeded!");
-            //eprintln!("`{}` StdOut: {}", command_str,
-            // String::from_utf8(clean_output.stdout).expect("Could not interpret `cargo
-            // clean` stdout")); eprintln!("`{}` StdErr: {}", command_str,
-            // String::from_utf8(clean_output.stderr).expect("Could not interpret `cargo
-            // clean` stderr"));
-        }
-        true
-    }
+    clean_output.status.success()
 }
 
 fn get_cargo_command() -> String {
@@ -198,17 +174,13 @@ impl Rule for BuildsCleanlyWithoutWarningsOrErrors {
         let command_str = format!("{:?}", build_cmd);
         let build_output = match build_cmd.output() {
             Ok(o) => o,
-            Err(e) => {
-                if opt.verbose {
-                    // TODO - DEBUG - DELETE
-                    eprintln!("Build command `{}` failed : {}", command_str, e);
-                }
+            Err(_e) => {
                 return RuleOutcome::Undetermined;
             }
         };
         if !build_output.status.success() {
             if opt.verbose {
-                // TODO - DEBUG - DELETE
+                // TODO - Resolve desired output stream for verbose content
                 eprintln!("Build command `{}` failed", command_str);
                 eprintln!(
                     "`{}` StdOut: {}",
@@ -229,7 +201,7 @@ impl Rule for BuildsCleanlyWithoutWarningsOrErrors {
             Ok(stdout) => stdout,
             Err(e) => {
                 if opt.verbose {
-                    // TODO - DEBUG - DELETE
+                    // TODO - Resolve desired output stream for verbose content
                     eprintln!(
                         "Reading stdout for command `{}` failed : {}",
                         command_str, e
