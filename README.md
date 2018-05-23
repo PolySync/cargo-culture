@@ -24,11 +24,12 @@ want to take 100% of your mentor's nitpicks to heart.
 A good project...
 
 * Should include a well-formed Cargo.toml readable by `cargo metadata`
-* Should compile without warnings or errors.
-* Should have a README.md file in the root directory.
-* Should contain a LICENSE file in the project root directory.
-* Should contain a CONTRIBUTING file in the project root directory.
-* Should contain a file suggesting the use of a continuous integration system.
+* Should `cargo clean` and `cargo build` without warnings or errors.
+* Should have a README.md file in the project root directory.
+* Should have a LICENSE file in the project root directory.
+* Should have a CONTRIBUTING file in the project root directory.
+* Should have a rustfmt.toml in the project root directory.
+* Should have a file suggesting the use of a continuous integration system.
 * Should have multiple tests which pass.
 * Should be making an effort to use property based tests.
 
@@ -36,7 +37,7 @@ A good project...
 
 A great project...
 
-* Should have 100% expression test coverage.
+* Should be measuring its test coverage.
 * Should be fuzz-testing all of its binaries.
 * Should contain some benchmarks.
 * Should have documentation for its public interfaces.

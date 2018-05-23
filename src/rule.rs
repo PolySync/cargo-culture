@@ -1,13 +1,6 @@
 use cargo_metadata::Metadata;
+use std::fmt::Debug;
 use std::path::PathBuf;
-
-arg_enum! {
-    #[derive(Debug)]
-    pub enum Color {
-        Never,
-        Always,
-    }
-}
 
 #[derive(StructOpt, Debug)]
 #[structopt(name = "cargo-culture")]
@@ -17,23 +10,16 @@ pub struct Opt {
 
     #[structopt(short = "v", long = "verbose")]
     pub verbose: bool,
-
-    #[structopt(raw(possible_values = "&Color::variants()", case_insensitive = "true"), default_value = "Always")]
-    pub color: Color,
 }
 
-
-#[derive(Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum RuleOutcome {
     Success,
     Failure,
     Undetermined,
 }
 
-
-pub trait Rule {
-    fn catch_phrase(&self) -> &'static str;
+pub trait Rule: Debug {
+    fn catch_phrase(&self) -> &str;
     fn evaluate(&self, opt: &Opt, metadata: &Option<Metadata>) -> RuleOutcome;
-
-
 }
