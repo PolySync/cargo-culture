@@ -2,7 +2,7 @@ use super::RuleOutcome;
 use regex::Regex;
 use std::convert::From;
 use std::io::ErrorKind;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 #[derive(Debug, PartialEq)]
 pub enum FilePresence {
@@ -37,13 +37,13 @@ pub fn file_present(path: &Path) -> FilePresence {
 
 pub fn shallow_scan_project_dir_for_file_name_match(
     regex: &Regex,
-    manifest_path: &PathBuf,
+    manifest_path: &Path,
 ) -> RuleOutcome {
     use std::fs::read_dir;
     let project_dir = {
-        let mut project_dir = manifest_path.clone();
-        project_dir.pop();
-        project_dir
+        let mut p = manifest_path.to_path_buf();
+        p.pop();
+        p
     };
     if !project_dir.is_dir() {
         return RuleOutcome::Undetermined;
@@ -63,7 +63,8 @@ pub fn shallow_scan_project_dir_for_file_name_match(
                 if path.is_dir() {
                     continue;
                 }
-                let name_matches = path.file_name()
+                let name_matches = path
+                    .file_name()
                     .and_then(|name| name.to_str())
                     .map(|name| regex.is_match(name))
                     .unwrap_or(false);

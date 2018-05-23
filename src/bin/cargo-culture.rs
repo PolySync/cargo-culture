@@ -6,5 +6,9 @@ use std::io::stdout;
 use structopt::StructOpt;
 
 fn main() {
-    std::process::exit(check_culture(&Opt::from_args(), stdout()).exit_code())
+    let Opt {
+        manifest_path,
+        verbose,
+    } = Opt::from_args();
+    std::process::exit(check_culture(manifest_path, verbose, &mut stdout()).exit_code())
 }
