@@ -1,0 +1,8 @@
+[package]
+name = "cargo-culture"
+version = "0.1.0"
+authors = ["Zachary Pierce <zpierce@polysync.io>"]
+
+[dependencies]
+cargo_culture_kit = { path = "../" }
+structopt = "0.2"

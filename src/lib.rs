@@ -8,9 +8,6 @@ extern crate proptest;
 #[macro_use]
 extern crate lazy_static;
 
-#[macro_use]
-extern crate structopt;
-
 extern crate cargo_metadata;
 extern crate colored;
 
@@ -57,8 +54,8 @@ pub fn check_culture<P: AsRef<Path>, W: Write>(
     let outcome_stats = evaluate_rules(
         cargo_manifest_file_path.as_ref(),
         verbose,
-        print_output,
         &metadata_option,
+        print_output,
         rules.as_slice(),
     );
     let conclusion = if outcome_stats.is_success() {
@@ -103,19 +100,19 @@ fn read_cargo_metadata<P: AsRef<Path>, W: Write>(
 pub fn evaluate_rules<P: AsRef<Path>, W: Write, M: Borrow<Option<Metadata>>>(
     cargo_manifest_file_path: P,
     verbose: bool,
-    print_output: &mut W,
     metadata: M,
+    print_output: &mut W,
     rules: &[Box<Rule>],
 ) -> OutcomeStats {
     let mut stats = OutcomeStats::empty();
     for rule in rules {
-        let outcome = rule.evaluate(
+        let outcome = print_rule_evaluation(
+            rule.as_ref(),
             cargo_manifest_file_path.as_ref(),
             verbose,
             metadata.borrow(),
             print_output,
         );
-        print_outcome(rule.as_ref(), &outcome, print_output);
         match outcome {
             RuleOutcome::Success => stats.success_count += 1,
             RuleOutcome::Failure => stats.fail_count += 1,
@@ -125,13 +122,25 @@ pub fn evaluate_rules<P: AsRef<Path>, W: Write, M: Borrow<Option<Metadata>>>(
     stats
 }
 
-fn print_outcome(rule: &Rule, outcome: &RuleOutcome, output: &mut Write) {
-    writeln!(
-        output,
-        "{} ... {}",
-        rule.catch_phrase(),
-        summary_str(outcome)
-    ).expect("Could not write rule outcome");
+fn print_rule_evaluation<P: AsRef<Path>, W: Write, M: Borrow<Option<Metadata>>>(
+    rule: &Rule,
+    cargo_manifest_file_path: P,
+    verbose: bool,
+    metadata: M,
+    print_output: &mut W,
+) -> RuleOutcome {
+    print_output
+        .write_all(rule.catch_phrase().as_bytes())
+        .expect("Could not write rule name");
+    print_output.flush().expect("Could not flush output");
+    let outcome = rule.evaluate(
+        cargo_manifest_file_path.as_ref(),
+        verbose,
+        metadata.borrow(),
+        print_output,
+    );
+    writeln!(print_output, " ... {}", summary_str(&outcome)).expect("Could not write rule outcome");
+    outcome
 }
 
 fn summary_str<T: Borrow<RuleOutcome>>(outcome: T) -> colored::ColoredString {
@@ -207,18 +216,6 @@ impl ExitCode for OutcomeStats {
     }
 }
 
-#[derive(StructOpt, Debug)]
-#[structopt(name = "cargo-culture")]
-pub struct Opt {
-    /// The location of the Cargo manifest for the project to check
-    #[structopt(long = "manifest-path", parse(from_os_str), default_value = "./Cargo.toml")]
-    pub manifest_path: PathBuf,
-
-    /// If present, emit extraneous explanations and superfluous details
-    #[structopt(short = "v", long = "verbose")]
-    pub verbose: bool,
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -286,7 +283,7 @@ mod tests {
         fn piles_of_fixed_outcome_rules_evaluable(ref verbose in any::<bool>(),
                                                   ref vec_of_rules in arb_vec_of_rules()) {
             let mut v:Vec<u8> = Vec::new();
-            let _outcome:RuleOutcome = evaluate_rules(Path::new("./Cargo.toml"), *verbose, &mut v, &None,vec_of_rules).into();
+            let _outcome:RuleOutcome = evaluate_rules(Path::new("./Cargo.toml"), *verbose, &None,&mut v, vec_of_rules).into();
         }
     }
 }

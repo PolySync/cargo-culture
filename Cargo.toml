@@ -1,22 +1,16 @@
 [package]
-name = "cargo_culture"
+name = "cargo_culture_kit"
 version = "0.1.0"
 authors = ["ZackPierce <zacharypierce@gmail.com>"]
 
-[lib]
-name = "cargo_culture"
-path = "src/lib.rs"
-
-[[bin]]
-name = "cargo-culture"
-path = "src/bin/cargo-culture.rs"
+[features]
+default = []
 
 [dependencies]
 cargo_metadata = "0.5.4"
 colored = "1.6"
 lazy_static = "1.0"
 regex = "1"
-structopt = "0.2"
 
 [dev-dependencies]
 tempdir = "0.3"

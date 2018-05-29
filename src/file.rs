@@ -63,8 +63,7 @@ pub fn shallow_scan_project_dir_for_file_name_match(
                 if path.is_dir() {
                     continue;
                 }
-                let name_matches = path
-                    .file_name()
+                let name_matches = path.file_name()
                     .and_then(|name| name.to_str())
                     .map(|name| regex.is_match(name))
                     .unwrap_or(false);

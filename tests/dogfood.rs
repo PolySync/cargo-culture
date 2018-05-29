@@ -1,6 +1,6 @@
-extern crate cargo_culture;
+extern crate cargo_culture_kit;
 
-use cargo_culture::*;
+use cargo_culture_kit::*;
 
 use std::io::stderr;
 use std::path::PathBuf;
