@@ -3,8 +3,7 @@
 Automated opinionated checks for Rust project compliance with conventions and intention towards excellence.
 ## How?
 
-```
-// TODO - do we need to specify nightly here?
+```bash
 cargo install cargo-culture
 
 cargo culture
@@ -25,10 +24,10 @@ A good project...
 
 * Should include a well-formed Cargo.toml readable by `cargo metadata`
 * Should `cargo clean` and `cargo build` without warnings or errors.
-* Should have a README.md file in the project root directory.
-* Should have a LICENSE file in the project root directory.
-* Should have a CONTRIBUTING file in the project root directory.
-* Should have a rustfmt.toml in the project root directory.
+* Should have a README.md file in the project directory.
+* Should have a LICENSE file in the project directory.
+* Should have a CONTRIBUTING file in the project directory.
+* Should have a rustfmt.toml in the project directory.
 * Should have a file suggesting the use of a continuous integration system.
 * Should have multiple tests which pass.
 * Should be making an effort to use property based tests.

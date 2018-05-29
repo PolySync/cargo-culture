@@ -18,9 +18,11 @@ mod collaboration;
 mod file;
 pub mod rule;
 
-use build_infra::*;
-use collaboration::*;
-pub use rule::*;
+pub use build_infra::{BuildsCleanlyWithoutWarningsOrErrors, CargoMetadataReadable,
+                      HasContinuousIntegrationFile, PassesMultipleTests,
+                      UsesPropertyBasedTestLibrary};
+pub use collaboration::{HasContributingFile, HasLicenseFile, HasReadmeFile, HasRustfmtFile};
+pub use rule::{Rule, RuleOutcome};
 
 use cargo_metadata::Metadata;
 use colored::*;

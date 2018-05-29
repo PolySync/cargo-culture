@@ -1,0 +1,9 @@
+# Seeds for failure cases proptest has generated in the past. It is
+# automatically read and these particular cases re-run before any
+# novel cases are generated.
+#
+# It is recommended to check this file in to source control so that
+# everyone who runs the test benefits from these saved cases.
+xs 2467442484 2517993642 477405578 3190673130 # shrinks to ref path = "", ref verbose = false
+xs 1671754775 165948280 3411614431 116018000 # shrinks to ref path = "꣠", ref verbose = false
+xs 291825124 1137436175 173905602 2690648707 # shrinks to ref path = "/home/zack/Code/cargo-culture/cargo-culture/0", ref verbose = false

@@ -1,7 +1,7 @@
 use regex::Regex;
 
 use cargo_metadata::Metadata;
-use file::{file_present, shallow_scan_project_dir_for_file_name_match};
+use file::{is_file_present, search_manifest_and_workspace_dir_for_file_name_match};
 use rule::*;
 use std::io::Write;
 use std::path::Path;
@@ -16,19 +16,20 @@ lazy_static! {
 
 impl Rule for HasContributingFile {
     fn catch_phrase(&self) -> &str {
-        "Should have a CONTRIBUTING file in the project root directory."
+        "Should have a CONTRIBUTING file in the project directory."
     }
 
     fn evaluate(
         &self,
         cargo_manifest_file_path: &Path,
         _verbose: bool,
-        _: &Option<Metadata>,
-        _: &mut Write,
+        metadata: &Option<Metadata>,
+        _print_output: &mut Write,
     ) -> RuleOutcome {
-        shallow_scan_project_dir_for_file_name_match(
+        search_manifest_and_workspace_dir_for_file_name_match(
             &HAS_CONTRIBUTING_FILE,
             cargo_manifest_file_path,
+            metadata,
         )
     }
 }
@@ -43,17 +44,21 @@ lazy_static! {
 
 impl Rule for HasLicenseFile {
     fn catch_phrase(&self) -> &'static str {
-        "Should have a LICENSE file in the project root directory."
+        "Should have a LICENSE file in the project directory."
     }
 
     fn evaluate(
         &self,
         cargo_manifest_file_path: &Path,
         _verbose: bool,
-        _: &Option<Metadata>,
-        _: &mut Write,
+        metadata: &Option<Metadata>,
+        _print_output: &mut Write,
     ) -> RuleOutcome {
-        shallow_scan_project_dir_for_file_name_match(&HAS_LICENSE_FILE, cargo_manifest_file_path)
+        search_manifest_and_workspace_dir_for_file_name_match(
+            &HAS_LICENSE_FILE,
+            cargo_manifest_file_path,
+            metadata,
+        )
     }
 }
 
@@ -62,19 +67,19 @@ pub struct HasReadmeFile;
 
 impl Rule for HasReadmeFile {
     fn catch_phrase(&self) -> &'static str {
-        "Should have a README.md file in the project root directory."
+        "Should have a README.md file in the project directory."
     }
 
     fn evaluate(
         &self,
         cargo_manifest_file_path: &Path,
         _verbose: bool,
-        _: &Option<Metadata>,
-        _: &mut Write,
+        _metadata: &Option<Metadata>,
+        _print_output: &mut Write,
     ) -> RuleOutcome {
         let mut path = cargo_manifest_file_path.to_path_buf();
         path.pop();
-        file_present(&path.join("README.md")).into()
+        is_file_present(&path.join("README.md")).into()
     }
 }
 
@@ -88,16 +93,20 @@ lazy_static! {
 
 impl Rule for HasRustfmtFile {
     fn catch_phrase(&self) -> &'static str {
-        "Should have a rustfmt.toml file in the project root directory."
+        "Should have a rustfmt.toml file in the project directory."
     }
 
     fn evaluate(
         &self,
         cargo_manifest_file_path: &Path,
         _verbose: bool,
-        _: &Option<Metadata>,
-        _: &mut Write,
+        metadata: &Option<Metadata>,
+        _print_output: &mut Write,
     ) -> RuleOutcome {
-        shallow_scan_project_dir_for_file_name_match(&HAS_RUSTFMT_FILE, cargo_manifest_file_path)
+        search_manifest_and_workspace_dir_for_file_name_match(
+            &HAS_RUSTFMT_FILE,
+            cargo_manifest_file_path,
+            metadata,
+        )
     }
 }

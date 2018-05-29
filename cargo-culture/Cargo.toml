@@ -4,5 +4,8 @@ version = "0.1.0"
 authors = ["Zachary Pierce <zpierce@polysync.io>"]
 
 [dependencies]
-cargo_culture_kit = { path = "../" }
+cargo-culture-kit = { path = "../cargo-culture-kit" }
 structopt = "0.2"
+
+[dev-dependencies]
+proptest = "0.7"

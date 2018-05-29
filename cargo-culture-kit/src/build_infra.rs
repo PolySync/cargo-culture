@@ -1,7 +1,7 @@
 use regex::Regex;
 
 use cargo_metadata::{DependencyKind, Metadata};
-use file::{file_present, FilePresence};
+use file::search_manifest_and_workspace_dir_for_file_name_match;
 use rule::*;
 use std::io::Write;
 use std::path::Path;
@@ -33,6 +33,12 @@ impl Rule for CargoMetadataReadable {
 #[derive(Default, Debug)]
 pub struct HasContinuousIntegrationFile;
 
+lazy_static! {
+    static ref HAS_CONTINUOUS_INTEGRATION_FILE: Regex =
+        Regex::new(r"^(?i)(appveyor|\.appveyor|\.drone|\.gitlab-ci|\.travis)\.ya?ml")
+            .expect("Failed to create HasContinuousIntegrationFile regex.");
+}
+
 impl Rule for HasContinuousIntegrationFile {
     fn catch_phrase(&self) -> &'static str {
         "Should have a file suggesting the use of a continuous integration system."
@@ -42,33 +48,14 @@ impl Rule for HasContinuousIntegrationFile {
         &self,
         cargo_manifest_file_path: &Path,
         _verbose: bool,
-        _: &Option<Metadata>,
+        metadata: &Option<Metadata>,
         _: &mut Write,
     ) -> RuleOutcome {
-        let project_dir = {
-            let mut project_dir = cargo_manifest_file_path.to_path_buf();
-            project_dir.pop();
-            project_dir
-        };
-        if !project_dir.is_dir() {
-            return RuleOutcome::Undetermined;
-        }
-        let files = vec![
-            "appveyor.yml",
-            ".appveyor.yml",
-            ".drone.yml",
-            ".gitlab-ci.yml",
-            ".travis.yml",
-        ];
-        for file in files {
-            let ci_file_presence = file_present(&project_dir.clone().join(file));
-            if let FilePresence::Present = ci_file_presence {
-                return RuleOutcome::Success;
-            }
-        }
-        // TODO - if all are undeterminable, report that
-        // TODO - consider providing more verbose feedback for empties?
-        RuleOutcome::Failure
+        search_manifest_and_workspace_dir_for_file_name_match(
+            &HAS_CONTINUOUS_INTEGRATION_FILE,
+            cargo_manifest_file_path,
+            metadata,
+        )
     }
 }
 
@@ -77,7 +64,7 @@ pub struct UsesPropertyBasedTestLibrary;
 
 lazy_static! {
     static ref USES_PROPERTY_BASED_TEST_LIBRARY: Regex =
-        Regex::new(r"^(?i)(proptest)|(quickcheck)|(suppositions).*")
+        Regex::new(r"^(?i)(proptest|quickcheck|suppositions).*")
             .expect("Failed to create UsesPropertyBasedTestLibrary regex.");
 }
 

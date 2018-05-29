@@ -1,0 +1,17 @@
+[package]
+name = "cargo-culture-kit"
+version = "0.1.0"
+authors = ["ZackPierce <zacharypierce@gmail.com>"]
+
+[features]
+default = []
+
+[dependencies]
+cargo_metadata = "0.5.4"
+colored = "1.6"
+lazy_static = "1.0"
+regex = "1"
+
+[dev-dependencies]
+tempdir = "0.3"
+proptest = "0.7"
