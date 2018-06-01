@@ -8,9 +8,6 @@ extern crate proptest;
 #[macro_use]
 extern crate lazy_static;
 
-#[macro_use]
-extern crate structopt;
-
 extern crate cargo_metadata;
 extern crate colored;
 
@@ -21,15 +18,17 @@ mod collaboration;
 mod file;
 pub mod rule;
 
-use build_infra::*;
-use collaboration::*;
-pub use rule::*;
+pub use build_infra::{BuildsCleanlyWithoutWarningsOrErrors, CargoMetadataReadable,
+                      HasContinuousIntegrationFile, PassesMultipleTests,
+                      UsesPropertyBasedTestLibrary};
+pub use collaboration::{HasContributingFile, HasLicenseFile, HasReadmeFile, HasRustfmtFile};
+pub use rule::{Rule, RuleOutcome};
 
 use cargo_metadata::Metadata;
 use colored::*;
 use std::borrow::Borrow;
 use std::io::Write;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 pub fn default_rules() -> Vec<Box<Rule>> {
     vec![
@@ -45,15 +44,21 @@ pub fn default_rules() -> Vec<Box<Rule>> {
     ]
 }
 
-pub fn check_culture<O: Borrow<Opt>, W: Write>(opt: O, mut print_output: W) -> OutcomeStats {
+pub fn check_culture<P: AsRef<Path>, W: Write>(
+    cargo_manifest_file_path: P,
+    verbose: bool,
+    print_output: &mut W,
+) -> OutcomeStats {
     let rules: Vec<Box<Rule>> = default_rules();
 
-    let metadata_option = read_cargo_metadata(opt.borrow(), &mut print_output);
+    let metadata_option =
+        read_cargo_metadata(cargo_manifest_file_path.as_ref(), verbose, print_output);
     let outcome_stats = evaluate_rules(
-        opt.borrow(),
-        &mut print_output,
-        rules.as_slice(),
+        cargo_manifest_file_path.as_ref(),
+        verbose,
         &metadata_option,
+        print_output,
+        rules.as_slice(),
     );
     let conclusion = if outcome_stats.is_success() {
         "ok".green()
@@ -72,16 +77,20 @@ pub fn check_culture<O: Borrow<Opt>, W: Write>(opt: O, mut print_output: W) -> O
     outcome_stats
 }
 
-fn read_cargo_metadata<O: Borrow<Opt>, W: Write>(opt: O, print_output: &mut W) -> Option<Metadata> {
+fn read_cargo_metadata<P: AsRef<Path>, W: Write>(
+    cargo_manifest_file_path: P,
+    verbose: bool,
+    print_output: &mut W,
+) -> Option<Metadata> {
     // TODO - will need to do some more forgiving custom metadata parsing to deal
     // with changes in cargo metadata format -- the current crate assumes
     // you're on a recent nightly, where workspace_root has been added
-    let manifest_path: PathBuf = opt.borrow().manifest_path.clone();
+    let manifest_path: PathBuf = cargo_manifest_file_path.as_ref().to_path_buf();
     let metadata_result = cargo_metadata::metadata(Some(manifest_path.as_ref()));
     match metadata_result {
         Ok(m) => Some(m),
         Err(e) => {
-            if opt.borrow().verbose {
+            if verbose {
                 writeln!(print_output, "{}", e)
                     .expect("Error reporting project's `cargo metadata`");
             }
@@ -90,16 +99,22 @@ fn read_cargo_metadata<O: Borrow<Opt>, W: Write>(opt: O, print_output: &mut W) -
     }
 }
 
-pub fn evaluate_rules<O: Borrow<Opt>, W: Write, M: Borrow<Option<Metadata>>>(
-    opt: O,
+pub fn evaluate_rules<P: AsRef<Path>, W: Write, M: Borrow<Option<Metadata>>>(
+    cargo_manifest_file_path: P,
+    verbose: bool,
+    metadata: M,
     print_output: &mut W,
     rules: &[Box<Rule>],
-    metadata: M,
 ) -> OutcomeStats {
     let mut stats = OutcomeStats::empty();
     for rule in rules {
-        let outcome = rule.evaluate(opt.borrow(), metadata.borrow());
-        print_outcome(rule.as_ref(), &outcome, print_output);
+        let outcome = print_rule_evaluation(
+            rule.as_ref(),
+            cargo_manifest_file_path.as_ref(),
+            verbose,
+            metadata.borrow(),
+            print_output,
+        );
         match outcome {
             RuleOutcome::Success => stats.success_count += 1,
             RuleOutcome::Failure => stats.fail_count += 1,
@@ -109,13 +124,25 @@ pub fn evaluate_rules<O: Borrow<Opt>, W: Write, M: Borrow<Option<Metadata>>>(
     stats
 }
 
-fn print_outcome(rule: &Rule, outcome: &RuleOutcome, output: &mut Write) {
-    writeln!(
-        output,
-        "{} ... {}",
-        rule.catch_phrase(),
-        summary_str(outcome)
-    ).expect("Could not write rule outcome");
+fn print_rule_evaluation<P: AsRef<Path>, W: Write, M: Borrow<Option<Metadata>>>(
+    rule: &Rule,
+    cargo_manifest_file_path: P,
+    verbose: bool,
+    metadata: M,
+    print_output: &mut W,
+) -> RuleOutcome {
+    print_output
+        .write_all(rule.catch_phrase().as_bytes())
+        .expect("Could not write rule name");
+    print_output.flush().expect("Could not flush output");
+    let outcome = rule.evaluate(
+        cargo_manifest_file_path.as_ref(),
+        verbose,
+        metadata.borrow(),
+        print_output,
+    );
+    writeln!(print_output, " ... {}", summary_str(&outcome)).expect("Could not write rule outcome");
+    outcome
 }
 
 fn summary_str<T: Borrow<RuleOutcome>>(outcome: T) -> colored::ColoredString {
@@ -170,6 +197,7 @@ impl OutcomeStats {
     }
 }
 
+/// A means of genericizing expected process exit code
 pub trait ExitCode {
     fn exit_code(&self) -> i32;
 }
@@ -195,7 +223,6 @@ mod tests {
     use super::*;
     use proptest::collection::VecStrategy;
     use proptest::prelude::*;
-    use std::path::PathBuf;
 
     fn arb_rule_outcome() -> BoxedStrategy<RuleOutcome> {
         prop_oneof![
@@ -228,15 +255,6 @@ mod tests {
         }
     }
 
-    prop_compose! {
-        fn arb_opt()(verbose in any::<bool>()) -> Opt {
-            // TODO - generate manifest_path properly
-            Opt {
-                verbose: verbose, manifest_path: PathBuf::from("./Cargo.toml")
-            }
-        }
-    }
-
     fn arb_vec_of_rules() -> VecStrategy<BoxedStrategy<Box<Rule>>> {
         prop::collection::vec(arb_rule(), 0..100)
     }
@@ -252,7 +270,7 @@ mod tests {
             self.catch_phrase.as_ref()
         }
 
-        fn evaluate(&self, _: &Opt, _: &Option<Metadata>) -> RuleOutcome {
+        fn evaluate(&self, _: &Path, _: bool, _: &Option<Metadata>, _: &mut Write) -> RuleOutcome {
             self.outcome.clone()
         }
     }
@@ -264,10 +282,10 @@ mod tests {
         }
 
         #[test]
-        fn piles_of_fixed_outcome_rules_evaluable(ref opt in arb_opt(),
+        fn piles_of_fixed_outcome_rules_evaluable(ref verbose in any::<bool>(),
                                                   ref vec_of_rules in arb_vec_of_rules()) {
             let mut v:Vec<u8> = Vec::new();
-            let _outcome:RuleOutcome = evaluate_rules(opt, &mut v, vec_of_rules, &None).into();
+            let _outcome:RuleOutcome = evaluate_rules(Path::new("./Cargo.toml"), *verbose, &None,&mut v, vec_of_rules).into();
         }
     }
 }

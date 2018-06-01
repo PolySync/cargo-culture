@@ -1,4 +1,6 @@
-
 /target/
+cargo-culture/target
+cargo-culture-kit/target
 **/*.rs.bk
 .idea
+*.swp
