@@ -15,7 +15,7 @@ lazy_static! {
 }
 
 impl Rule for HasContributingFile {
-    fn catch_phrase(&self) -> &str {
+    fn description(&self) -> &str {
         "Should have a CONTRIBUTING file in the project directory."
     }
 
@@ -43,7 +43,7 @@ lazy_static! {
 }
 
 impl Rule for HasLicenseFile {
-    fn catch_phrase(&self) -> &'static str {
+    fn description(&self) -> &'static str {
         "Should have a LICENSE file in the project directory."
     }
 
@@ -66,7 +66,7 @@ impl Rule for HasLicenseFile {
 pub struct HasReadmeFile;
 
 impl Rule for HasReadmeFile {
-    fn catch_phrase(&self) -> &'static str {
+    fn description(&self) -> &'static str {
         "Should have a README.md file in the project directory."
     }
 
@@ -92,7 +92,7 @@ lazy_static! {
 }
 
 impl Rule for HasRustfmtFile {
-    fn catch_phrase(&self) -> &'static str {
+    fn description(&self) -> &'static str {
         "Should have a rustfmt.toml file in the project directory."
     }
 

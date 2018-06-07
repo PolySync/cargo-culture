@@ -37,7 +37,9 @@ fn assert_checks_default_culture(cargo_manifest_file_path: &Path) {
                 "About to dogfood self with a check_culture, using the manifest at: {:?}",
                 cargo_manifest_file_path
             );
-            let outcome = check_culture(cargo_manifest_file_path, false, &mut stderr());
+            let outcome = check_culture_default(cargo_manifest_file_path, false, &mut stderr())
+                .expect("Should have no errors running the checks")
+                .into();
 
             assert_eq!(
                 OutcomeStats {

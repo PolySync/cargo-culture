@@ -9,6 +9,7 @@ default = []
 [dependencies]
 cargo_metadata = "0.5.4"
 colored = "1.6"
+failure = "0.1"
 lazy_static = "1.0"
 regex = "1"
 

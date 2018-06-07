@@ -11,7 +11,7 @@ pub enum RuleOutcome {
 }
 
 pub trait Rule: Debug {
-    fn catch_phrase(&self) -> &str;
+    fn description(&self) -> &str;
     fn evaluate(
         &self,
         cargo_manifest_file_path: &Path,

@@ -12,7 +12,7 @@ use std::str::from_utf8;
 pub struct CargoMetadataReadable;
 
 impl Rule for CargoMetadataReadable {
-    fn catch_phrase(&self) -> &'static str {
+    fn description(&self) -> &'static str {
         "Should have a well-formed Cargo.toml file readable by `cargo metadata`"
     }
 
@@ -40,7 +40,7 @@ lazy_static! {
 }
 
 impl Rule for HasContinuousIntegrationFile {
-    fn catch_phrase(&self) -> &'static str {
+    fn description(&self) -> &'static str {
         "Should have a file suggesting the use of a continuous integration system."
     }
 
@@ -69,7 +69,7 @@ lazy_static! {
 }
 
 impl Rule for UsesPropertyBasedTestLibrary {
-    fn catch_phrase(&self) -> &'static str {
+    fn description(&self) -> &'static str {
         "Should be making an effort to use property based tests."
     }
 
@@ -183,7 +183,7 @@ fn get_cargo_command() -> String {
 }
 
 impl Rule for BuildsCleanlyWithoutWarningsOrErrors {
-    fn catch_phrase(&self) -> &'static str {
+    fn description(&self) -> &'static str {
         "Should `cargo clean` and `cargo build` without any warnings or errors."
     }
 
@@ -223,20 +223,12 @@ impl Rule for BuildsCleanlyWithoutWarningsOrErrors {
             if verbose {
                 // TODO - Resolve desired output stream for verbose content
                 let _ = writeln!(print_output, "Build command `{}` failed", command_str);
-                let _ = writeln!(
-                    print_output,
-                    "`{}` StdOut: {}",
-                    command_str,
-                    String::from_utf8(build_output.stdout)
-                        .expect("Could not interpret `cargo build` stdout")
-                );
-                let _ = writeln!(
-                    print_output,
-                    "`{}` StdErr: {}",
-                    command_str,
-                    String::from_utf8(build_output.stderr)
-                        .expect("Could not interpret `cargo build` stderr")
-                );
+                if let Ok(s) = String::from_utf8(build_output.stdout) {
+                    let _ = writeln!(print_output, "`{}` StdOut: {}", command_str, s);
+                }
+                if let Ok(s) = String::from_utf8(build_output.stderr) {
+                    let _ = writeln!(print_output, "`{}` StdErr: {}", command_str, s);
+                }
             }
             return RuleOutcome::Failure;
         }
@@ -244,7 +236,6 @@ impl Rule for BuildsCleanlyWithoutWarningsOrErrors {
             Ok(stdout) => stdout,
             Err(e) => {
                 if verbose {
-                    // TODO - Resolve desired output stream for verbose content
                     let _ = writeln!(
                         print_output,
                         "Reading stdout for command `{}` failed : {}",
@@ -266,7 +257,7 @@ impl Rule for BuildsCleanlyWithoutWarningsOrErrors {
 pub struct PassesMultipleTests;
 
 impl Rule for PassesMultipleTests {
-    fn catch_phrase(&self) -> &'static str {
+    fn description(&self) -> &'static str {
         "Project should have multiple tests which pass."
     }
 
