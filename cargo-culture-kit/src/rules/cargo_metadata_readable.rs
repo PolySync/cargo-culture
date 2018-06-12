@@ -1,7 +1,7 @@
+use super::{Rule, RuleOutcome};
 use cargo_metadata::Metadata;
 use std::io::Write;
 use std::path::Path;
-use super::{Rule, RuleOutcome};
 
 #[derive(Default, Debug)]
 pub struct CargoMetadataReadable;

@@ -1,4 +1,5 @@
-//! Helper functions related to the interpretation and filtering of `Rule` description checklists
+//! Helper functions related to the interpretation and filtering of `Rule`
+//! description checklists
 use super::CheckError;
 use super::Rule;
 use std::fs::File;

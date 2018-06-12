@@ -1,5 +1,5 @@
 #[cfg(test)]
-extern crate tempdir;
+extern crate tempfile;
 
 #[macro_use]
 extern crate failure;
@@ -22,10 +22,10 @@ pub mod rules;
 
 pub use checklist::{filter_to_requested_rules_by_description,
                     filter_to_requested_rules_from_checklist_file, find_extant_culture_file};
-pub use rules::{default_rules, Rule, RuleOutcome,
-                BuildsCleanlyWithoutWarningsOrErrors, CargoMetadataReadable,
+pub use rules::{default_rules, BuildsCleanlyWithoutWarningsOrErrors, CargoMetadataReadable,
                 HasContinuousIntegrationFile, HasContributingFile, HasLicenseFile, HasReadmeFile,
-                HasRustfmtFile, PassesMultipleTests, UsesPropertyBasedTestLibrary,};
+                HasRustfmtFile, PassesMultipleTests, Rule, RuleOutcome,
+                UsesPropertyBasedTestLibrary};
 
 use cargo_metadata::Metadata;
 use colored::*;

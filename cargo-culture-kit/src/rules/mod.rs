@@ -1,5 +1,5 @@
-mod cargo_metadata_readable;
 mod builds_cleanly_without_warnings_or_errors;
+mod cargo_metadata_readable;
 mod has_continuous_integration_file;
 mod has_contributing_file;
 mod has_license_file;
@@ -25,35 +25,40 @@ use std::path::Path;
 
 /// The result of a `Rule.evaluate` call.
 ///
-/// Currently represented as a tri-valued flat enum rather than a `Result<bool, Error>` to
-/// reduce the temptation to use a fancy error management scheme. This is also to bring attention
-/// to 3rd party implementers that a `RuleOutcome::Failure` is not an anomalous situation from the
-/// operational standpoint of a `Rule` evaluation, and is distinct from a
-/// `RuleOutcome::Undetermined` value.
+/// Currently represented as a tri-valued flat enum rather than a `Result<bool,
+/// Error>` to reduce the temptation to use a fancy error management scheme.
+/// This is also to bring attention to 3rd party implementers that a
+/// `RuleOutcome::Failure` is not an anomalous situation from the operational
+/// standpoint of a `Rule` evaluation, and is distinct from a `RuleOutcome::
+/// Undetermined` value.
 #[derive(Clone, Debug, PartialEq)]
 pub enum RuleOutcome {
     /// The Rule's `description` is definitely true for this project
     Success,
     /// The Rule's `description` definitely is not upheld for this project
     Failure,
-    /// Something went wrong in the process of determining whether the Rule was upheld or not
-    /// for this project. Let's admit that we don't know for sure one way or the other.
+    /// Something went wrong in the process of determining whether the Rule was
+    /// upheld or not for this project. Let's admit that we don't know for
+    /// sure one way or the other.
     Undetermined,
 }
 
-/// The core trait of this crate. A `Rule` describes an idiom or best-practice for projects
-/// and provides a means of evaluating whether that rule of thumb is being upheld.
+/// The core trait of this crate. A `Rule` describes an idiom or best-practice
+/// for projects and provides a means of evaluating whether that rule of thumb
+/// is being upheld.
 pub trait Rule: Debug {
-    /// The central tenet of this `Rule`. Serves as a **unique identifier** for Rule instances,
-    /// as well as a human-readable summary of what this `Rule` means for a given project.
+    /// The central tenet of this `Rule`. Serves as a **unique identifier** for
+    /// Rule instances, as well as a human-readable summary of what this
+    /// `Rule` means for a given project.
     fn description(&self) -> &str;
 
-    /// Does the Rust project found at `cargo_manifest_path` uphold this `Rule`, as
-    /// summarized in the `description`?
+    /// Does the Rust project found at `cargo_manifest_path` uphold this
+    /// `Rule`, as summarized in the `description`?
     ///
     ///
-    /// Pre-parsed cargo `metadata` may be available, and supplemental human-readable `verbose`
-    /// content may be written to the `print_output`.
+    /// Pre-parsed cargo `metadata` may be available, and supplemental
+    /// human-readable `verbose` content may be written to the
+    /// `print_output`.
     fn evaluate(
         &self,
         cargo_manifest_file_path: &Path,

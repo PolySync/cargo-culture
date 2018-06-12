@@ -1,10 +1,10 @@
+use super::{Rule, RuleOutcome};
 use cargo_metadata::Metadata;
 use regex::Regex;
 use std::io::Write;
 use std::path::Path;
 use std::process::Command;
 use std::str::from_utf8;
-use super::{Rule, RuleOutcome};
 
 #[derive(Debug, Default)]
 pub struct BuildsCleanlyWithoutWarningsOrErrors;

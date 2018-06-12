@@ -1,9 +1,9 @@
+use super::super::file::search_manifest_and_workspace_dir_for_file_name_match;
+use super::{Rule, RuleOutcome};
 use cargo_metadata::Metadata;
 use regex::Regex;
 use std::io::Write;
 use std::path::Path;
-use super::{Rule, RuleOutcome};
-use super::super::file::search_manifest_and_workspace_dir_for_file_name_match;
 
 #[derive(Debug, Default)]
 pub struct HasLicenseFile;

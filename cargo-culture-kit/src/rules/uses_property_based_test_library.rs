@@ -1,8 +1,8 @@
+use super::{Rule, RuleOutcome};
 use cargo_metadata::{DependencyKind, Metadata};
 use regex::Regex;
 use std::io::Write;
 use std::path::Path;
-use super::{Rule, RuleOutcome};
 
 #[derive(Debug, Default)]
 pub struct UsesPropertyBasedTestLibrary;

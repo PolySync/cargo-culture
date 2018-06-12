@@ -128,11 +128,11 @@ mod tests {
     use super::*;
     use std::fs::File;
     use std::io::Write;
-    use tempdir::TempDir;
+    use tempfile::TempDir;
 
     #[test]
     fn file_present_follows_file_lifecycle() {
-        let dir = TempDir::new("my_directory_prefix").unwrap();
+        let dir = TempDir::new().unwrap();
         let file_path = dir.path().join("foo.txt");
         assert_eq!(FilePresence::Absent, is_file_present(&file_path));
 

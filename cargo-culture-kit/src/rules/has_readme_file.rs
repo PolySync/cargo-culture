@@ -1,8 +1,8 @@
+use super::super::file::is_file_present;
+use super::{Rule, RuleOutcome};
 use cargo_metadata::Metadata;
 use std::io::Write;
 use std::path::Path;
-use super::{Rule, RuleOutcome};
-use super::super::file::is_file_present;
 
 #[derive(Debug, Default)]
 pub struct HasReadmeFile;
