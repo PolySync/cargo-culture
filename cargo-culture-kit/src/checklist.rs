@@ -1,5 +1,6 @@
+//! Helper functions related to the interpretation and filtering of `Rule` description checklists
 use super::CheckError;
-use rule::Rule;
+use super::Rule;
 use std::fs::File;
 use std::io::{BufRead, BufReader};
 use std::path::{Path, PathBuf};

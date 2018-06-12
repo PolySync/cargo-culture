@@ -1,106 +1,10 @@
+use cargo_metadata::Metadata;
 use regex::Regex;
-
-use cargo_metadata::{DependencyKind, Metadata};
-use file::search_manifest_and_workspace_dir_for_file_name_match;
-use rule::*;
 use std::io::Write;
 use std::path::Path;
 use std::process::Command;
 use std::str::from_utf8;
-
-#[derive(Default, Debug)]
-pub struct CargoMetadataReadable;
-
-impl Rule for CargoMetadataReadable {
-    fn description(&self) -> &'static str {
-        "Should have a well-formed Cargo.toml file readable by `cargo metadata`"
-    }
-
-    fn evaluate(
-        &self,
-        _: &Path,
-        _: bool,
-        metadata: &Option<Metadata>,
-        _: &mut Write,
-    ) -> RuleOutcome {
-        match *metadata {
-            None => RuleOutcome::Failure,
-            Some(_) => RuleOutcome::Success,
-        }
-    }
-}
-
-#[derive(Default, Debug)]
-pub struct HasContinuousIntegrationFile;
-
-lazy_static! {
-    static ref HAS_CONTINUOUS_INTEGRATION_FILE: Regex =
-        Regex::new(r"^(?i)(appveyor|\.appveyor|\.drone|\.gitlab-ci|\.travis)\.ya?ml")
-            .expect("Failed to create HasContinuousIntegrationFile regex.");
-}
-
-impl Rule for HasContinuousIntegrationFile {
-    fn description(&self) -> &'static str {
-        "Should have a file suggesting the use of a continuous integration system."
-    }
-
-    fn evaluate(
-        &self,
-        cargo_manifest_file_path: &Path,
-        _verbose: bool,
-        metadata: &Option<Metadata>,
-        _: &mut Write,
-    ) -> RuleOutcome {
-        search_manifest_and_workspace_dir_for_file_name_match(
-            &HAS_CONTINUOUS_INTEGRATION_FILE,
-            cargo_manifest_file_path,
-            metadata,
-        )
-    }
-}
-
-#[derive(Debug, Default)]
-pub struct UsesPropertyBasedTestLibrary;
-
-lazy_static! {
-    static ref USES_PROPERTY_BASED_TEST_LIBRARY: Regex =
-        Regex::new(r"^(?i)(proptest|quickcheck|suppositions).*")
-            .expect("Failed to create UsesPropertyBasedTestLibrary regex.");
-}
-
-impl Rule for UsesPropertyBasedTestLibrary {
-    fn description(&self) -> &'static str {
-        "Should be making an effort to use property based tests."
-    }
-
-    fn evaluate(
-        &self,
-        _: &Path,
-        _: bool,
-        metadata: &Option<Metadata>,
-        _: &mut Write,
-    ) -> RuleOutcome {
-        match *metadata {
-            None => RuleOutcome::Undetermined,
-            Some(ref m) => {
-                if m.packages.is_empty() {
-                    return RuleOutcome::Undetermined;
-                }
-                for package in &m.packages {
-                    let has_pbt_dep = package
-                        .dependencies
-                        .iter()
-                        .filter(|d| d.kind == DependencyKind::Development)
-                        .any(|d| USES_PROPERTY_BASED_TEST_LIBRARY.is_match(&d.name));
-                    if !has_pbt_dep {
-                        return RuleOutcome::Failure;
-                    }
-                }
-                RuleOutcome::Success
-            }
-        }
-    }
-}
+use super::{Rule, RuleOutcome};
 
 #[derive(Debug, Default)]
 pub struct BuildsCleanlyWithoutWarningsOrErrors;
@@ -250,38 +154,5 @@ impl Rule for BuildsCleanlyWithoutWarningsOrErrors {
             return RuleOutcome::Failure;
         }
         RuleOutcome::Success
-    }
-}
-
-#[derive(Default, Debug)]
-pub struct PassesMultipleTests;
-
-impl Rule for PassesMultipleTests {
-    fn description(&self) -> &'static str {
-        "Project should have multiple tests which pass."
-    }
-
-    fn evaluate(
-        &self,
-        cargo_manifest_file_path: &Path,
-        _verbose: bool,
-        _: &Option<Metadata>,
-        _: &mut Write,
-    ) -> RuleOutcome {
-        let cargo = get_cargo_command();
-        let mut test_cmd = Command::new(&cargo);
-        test_cmd.arg("test");
-        test_cmd
-            .arg("--manifest-path")
-            .arg(cargo_manifest_file_path);
-        test_cmd.arg("--message-format").arg("json");
-        test_cmd.env("CARGO_CULTURE_TEST_RECURSION_BUSTER", "true");
-        match test_cmd.output() {
-            Ok(_) => {
-                // TODO - parse to confirm that the number of tests exceeds 1
-                RuleOutcome::Success
-            }
-            Err(_) => RuleOutcome::Failure,
-        }
     }
 }

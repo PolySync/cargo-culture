@@ -16,19 +16,16 @@ extern crate colored;
 
 extern crate regex;
 
-mod build_infra;
 mod checklist;
-mod collaboration;
 mod file;
-pub mod rule;
+pub mod rules;
 
-pub use build_infra::{BuildsCleanlyWithoutWarningsOrErrors, CargoMetadataReadable,
-                      HasContinuousIntegrationFile, PassesMultipleTests,
-                      UsesPropertyBasedTestLibrary};
 pub use checklist::{filter_to_requested_rules_by_description,
                     filter_to_requested_rules_from_checklist_file, find_extant_culture_file};
-pub use collaboration::{HasContributingFile, HasLicenseFile, HasReadmeFile, HasRustfmtFile};
-pub use rule::{Rule, RuleOutcome};
+pub use rules::{default_rules, Rule, RuleOutcome,
+                BuildsCleanlyWithoutWarningsOrErrors, CargoMetadataReadable,
+                HasContinuousIntegrationFile, HasContributingFile, HasLicenseFile, HasReadmeFile,
+                HasRustfmtFile, PassesMultipleTests, UsesPropertyBasedTestLibrary,};
 
 use cargo_metadata::Metadata;
 use colored::*;
@@ -52,20 +49,6 @@ pub enum CheckError {
     #[fail(display = "There was an error while attempting to print content to the output writer: {}",
            _0)]
     PrintOutputFailure(String),
-}
-
-pub fn default_rules() -> Vec<Box<Rule>> {
-    vec![
-        Box::new(CargoMetadataReadable::default()),
-        Box::new(HasContributingFile::default()),
-        Box::new(HasLicenseFile::default()),
-        Box::new(HasReadmeFile::default()),
-        Box::new(HasRustfmtFile::default()),
-        Box::new(BuildsCleanlyWithoutWarningsOrErrors::default()),
-        Box::new(HasContinuousIntegrationFile::default()),
-        Box::new(UsesPropertyBasedTestLibrary::default()),
-        Box::new(PassesMultipleTests::default()),
-    ]
 }
 
 /// Execute a `check_culture` run using the set of rules available from

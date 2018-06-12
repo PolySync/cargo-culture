@@ -1,3 +1,4 @@
+//! File discovery and inspection utilities for use in implementing `Rule`s
 use super::RuleOutcome;
 use cargo_metadata::Metadata;
 use regex::Regex;
