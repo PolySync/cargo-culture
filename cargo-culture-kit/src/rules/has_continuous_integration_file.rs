@@ -1,4 +1,4 @@
-use super::super::file::search_manifest_and_workspace_dir_for_file_name_match;
+use super::super::file::search_manifest_and_workspace_dir_for_nonempty_file_name_match;
 use super::{Rule, RuleOutcome};
 use cargo_metadata::Metadata;
 use regex::Regex;
@@ -26,7 +26,7 @@ impl Rule for HasContinuousIntegrationFile {
         metadata: &Option<Metadata>,
         _: &mut Write,
     ) -> RuleOutcome {
-        search_manifest_and_workspace_dir_for_file_name_match(
+        search_manifest_and_workspace_dir_for_nonempty_file_name_match(
             &HAS_CONTINUOUS_INTEGRATION_FILE,
             cargo_manifest_file_path,
             metadata,

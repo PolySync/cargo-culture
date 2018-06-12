@@ -81,3 +81,58 @@ pub fn default_rules() -> Vec<Box<Rule>> {
         Box::new(PassesMultipleTests::default()),
     ]
 }
+
+#[cfg(test)]
+mod tests {}
+
+#[cfg(test)]
+pub(crate) mod test_support {
+    use super::{Rule, RuleOutcome};
+    use cargo_metadata;
+    use std::path::Path;
+
+    pub struct VerbosityOutcomes {
+        pub verbose: OutcomeCapture,
+        pub not_verbose: OutcomeCapture,
+    }
+
+    pub struct OutcomeCapture {
+        pub outcome: RuleOutcome,
+        pub print_output: Vec<u8>,
+    }
+
+    pub fn execute_rule_against_project_dir_all_verbosities(
+        project_dir: &Path,
+        rule: &Rule,
+    ) -> VerbosityOutcomes {
+        VerbosityOutcomes {
+            verbose: execute_rule_against_project_dir(project_dir, rule, true),
+            not_verbose: execute_rule_against_project_dir(project_dir, rule, false),
+        }
+    }
+
+    pub fn execute_rule_against_project_dir(
+        project_dir: &Path,
+        rule: &Rule,
+        verbose: bool,
+    ) -> OutcomeCapture {
+        let cargo_manifest_file_path = project_dir.join("Cargo.toml");
+        let metadata = cargo_metadata::metadata(Some(cargo_manifest_file_path.as_ref()))
+            .map_err(|e| {
+                println!("cargo_metadata error: {:?}", e);
+                e
+            })
+            .ok();
+        let mut print_output: Vec<u8> = Vec::new();
+        let outcome = rule.evaluate(
+            &cargo_manifest_file_path,
+            verbose,
+            &metadata,
+            &mut print_output,
+        );
+        OutcomeCapture {
+            outcome,
+            print_output,
+        }
+    }
+}
