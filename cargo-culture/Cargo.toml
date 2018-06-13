@@ -9,3 +9,4 @@ structopt = "0.2"
 
 [dev-dependencies]
 proptest = "0.7"
+tempfile = "3"

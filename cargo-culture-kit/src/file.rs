@@ -1,3 +1,4 @@
+//! File discovery and inspection utilities for use in implementing `Rule`s
 use super::RuleOutcome;
 use cargo_metadata::Metadata;
 use regex::Regex;
@@ -36,7 +37,7 @@ pub fn is_file_present(path: &Path) -> FilePresence {
     FilePresence::Present
 }
 
-pub fn shallow_scan_project_dir_for_file_name_match(
+pub fn shallow_scan_project_dir_for_nonempty_file_name_match(
     regex: &Regex,
     manifest_file_path: &Path,
 ) -> RuleOutcome {
@@ -68,7 +69,7 @@ pub fn shallow_scan_project_dir_for_file_name_match(
                     .and_then(|name| name.to_str())
                     .map(|name| regex.is_match(name))
                     .unwrap_or(false);
-                if name_matches {
+                if name_matches && path.metadata().ok().map(|m| m.len() > 0).unwrap_or(false) {
                     return RuleOutcome::Success;
                 }
             }
@@ -84,13 +85,13 @@ pub fn shallow_scan_project_dir_for_file_name_match(
     }
 }
 
-pub fn search_manifest_and_workspace_dir_for_file_name_match(
+pub fn search_manifest_and_workspace_dir_for_nonempty_file_name_match(
     regex: &Regex,
     manifest_path: &Path,
     maybe_metadata: &Option<Metadata>,
 ) -> RuleOutcome {
     let outcome_in_given_manifest_path =
-        shallow_scan_project_dir_for_file_name_match(regex, manifest_path);
+        shallow_scan_project_dir_for_nonempty_file_name_match(regex, manifest_path);
     if let RuleOutcome::Success = outcome_in_given_manifest_path {
         return RuleOutcome::Success;
     }
@@ -119,7 +120,7 @@ fn search_metadata_workspace_root_for_file_name_match(
     if !workspace_manifest_path.is_file() {
         return RuleOutcome::Undetermined;
     }
-    shallow_scan_project_dir_for_file_name_match(regex, &workspace_manifest_path)
+    shallow_scan_project_dir_for_nonempty_file_name_match(regex, &workspace_manifest_path)
 }
 
 #[cfg(test)]
@@ -127,11 +128,11 @@ mod tests {
     use super::*;
     use std::fs::File;
     use std::io::Write;
-    use tempdir::TempDir;
+    use tempfile::TempDir;
 
     #[test]
     fn file_present_follows_file_lifecycle() {
-        let dir = TempDir::new("my_directory_prefix").unwrap();
+        let dir = TempDir::new().unwrap();
         let file_path = dir.path().join("foo.txt");
         assert_eq!(FilePresence::Absent, is_file_present(&file_path));
 

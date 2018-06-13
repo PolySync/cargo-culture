@@ -1,6 +1,7 @@
 # cargo-culture
 
 Automated opinionated checks for Rust project compliance with conventions and intention towards excellence.
+
 ## How?
 
 ```bash
@@ -18,7 +19,7 @@ The rules were developed with open-source collaboration and a safety-first keep-
 `cargo-culture` is subjective. It's okay if you don't agree with all of its suggestions, just like you might not
 want to take 100% of your mentor's nitpicks to heart.
 
-## Current Rules
+## Current Default Rules
 
 A good project...
 
@@ -39,5 +40,4 @@ A great project...
 * Should be measuring its test coverage.
 * Should be fuzz-testing all of its binaries.
 * Should contain some benchmarks.
-* Should have documentation for its public interfaces.
 
