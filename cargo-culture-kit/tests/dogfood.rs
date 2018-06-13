@@ -38,16 +38,23 @@ fn assert_checks_default_culture(cargo_manifest_file_path: &Path) {
                 cargo_manifest_file_path
             );
             let outcome = check_culture_default(cargo_manifest_file_path, false, &mut stderr())
-                .expect("Should have no errors running the checks")
-                .into();
+                .expect("Should have no errors running the checks");
 
+            let def_rules = default_rules();
+            assert_eq!(def_rules.len(), outcome.len());
+
+            for r in def_rules {
+                assert_eq!(Some(&RuleOutcome::Success), outcome.get(r.description()));
+            }
+
+            let stats = outcome.into();
             assert_eq!(
                 OutcomeStats {
                     success_count: 9,
                     fail_count: 0,
                     unknown_count: 0,
                 },
-                outcome
+                stats
             );
         }
     }

@@ -7,6 +7,9 @@ extern crate structopt;
 #[macro_use]
 extern crate proptest;
 
+#[cfg(test)]
+extern crate tempfile;
+
 use cargo_culture_kit::{check_culture, check_culture_default, default_rules,
                         filter_to_requested_rules_from_checklist_file, find_extant_culture_file,
                         CheckError, ExitCode, OutcomesByDescription, Rule};
@@ -83,6 +86,72 @@ mod tests {
     use proptest::prelude::*;
     use std::env;
     use std::ffi::OsString;
+    use std::fs::{create_dir_all, File};
+    use std::io::Write;
+    use tempfile::tempdir;
+
+    #[test]
+    fn check_culture_from_extant_checklist() {
+        let dir = tempdir().expect("Failed to make a temp dir");
+        write_package_cargo_toml(dir.path());
+        write_clean_src_main_file(dir.path());
+        let checklist_path = dir.path().join(".culture");
+        let mut checklist_file = File::create(&checklist_path).expect("Could not make target file");
+        let selected_rule = cargo_culture_kit::CargoMetadataReadable::default();
+        let lone_rule_description = selected_rule.description();
+        checklist_file
+            .write_all(format!("{}", lone_rule_description).as_bytes())
+            .expect("Could not write to checklist file");
+        let outcomes =
+            check_culture_from_checklist(&dir.path().join("Cargo.toml"), false, &checklist_path)
+                .expect("Should pass scrutiny");
+        assert_eq!(1, outcomes.len());
+        assert_eq!(
+            Some(&cargo_culture_kit::RuleOutcome::Success),
+            outcomes.get(lone_rule_description)
+        );
+    }
+
+    fn write_package_cargo_toml(project_dir: &Path) {
+        let cargo_path = project_dir.join("Cargo.toml");
+        let mut cargo_file = File::create(cargo_path).expect("Could not make target file");
+        cargo_file
+            .write_all(
+                br##"[package]
+name = "kid"
+version = "0.1.0"
+authors = []
+
+[dependencies]
+
+[dev-dependencies]
+        "##,
+            )
+            .expect("Could not write to Cargo.toml file");
+    }
+
+    fn write_clean_src_main_file(project_dir: &Path) {
+        let src_dir = project_dir.join("src");
+        create_dir_all(&src_dir).expect("Could not create src dir");
+        let file_path = src_dir.join("main.rs");
+        let mut file = File::create(file_path).expect("Could not make target file");
+        file.write_all(
+            br##"//! Sample rust file for testing cargo-culture
+fn hello() { println!("Hello"); }
+
+fn main() { hello(); }
+
+#[cfg(test)]
+mod tests {
+    use super::hello;
+    #[test]
+    fn hello_does_not_panic() {
+        assert_eq!((), hello());
+    }
+}
+        "##,
+        ).expect("Could not write to target file");
+    }
 
     fn arb_basedir() -> BoxedStrategy<PathBuf> {
         let here = env::current_dir().unwrap_or(PathBuf::from("/test/directory"));

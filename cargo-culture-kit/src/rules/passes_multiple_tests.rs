@@ -66,6 +66,7 @@ impl Rule for PassesMultipleTests {
 fn get_cargo_command() -> String {
     ::std::env::var("CARGO").unwrap_or_else(|_| String::from("cargo"))
 }
+
 #[cfg(test)]
 mod tests {
     use super::super::test_support::*;
