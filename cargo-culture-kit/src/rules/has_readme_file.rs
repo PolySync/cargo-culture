@@ -30,7 +30,6 @@ mod tests {
     use super::super::test_support::*;
     use super::*;
     use std::fs::File;
-    use std::io::prelude::*;
     use tempfile::tempdir;
 
     #[test]

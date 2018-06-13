@@ -37,13 +37,12 @@ mod tests {
     use super::super::test_support::*;
     use super::*;
     use std::fs::File;
-    use std::io::prelude::*;
     use tempfile::tempdir;
 
     // TODO - Test for workspace style project edge cases
 
     #[test]
-    fn happy_path() {
+    fn has_rustfmt_happy_path() {
         let dir = tempdir().expect("Failed to make a temp dir");
         let file_path = dir.path().join("rustfmt.toml");
         let mut file = File::create(file_path).expect("Could not make target file");
@@ -59,7 +58,7 @@ mod tests {
     }
 
     #[test]
-    fn period_prefix_allowed() {
+    fn has_rustfmt_period_prefix_allowed() {
         let dir = tempdir().expect("Failed to make a temp dir");
         let file_path = dir.path().join(".rustfmt.toml");
         let mut file = File::create(file_path).expect("Could not make target file");
@@ -75,7 +74,7 @@ mod tests {
     }
 
     #[test]
-    fn legacy_prefix_allowed() {
+    fn has_rustfmt_legacy_prefix_allowed() {
         let dir = tempdir().expect("Failed to make a temp dir");
         let file_path = dir.path().join("legacy-rustfmt.toml");
         let mut file = File::create(file_path).expect("Could not make target file");
@@ -91,7 +90,7 @@ mod tests {
     }
 
     #[test]
-    fn additional_suffices_disallowed() {
+    fn has_rustfmt_additional_suffices_disallowed() {
         let dir = tempdir().expect("Failed to make a temp dir");
         let file_path = dir.path().join("rustfmt.toml.whatever");
         let mut file = File::create(file_path).expect("Could not make target file");
@@ -107,7 +106,7 @@ mod tests {
     }
 
     #[test]
-    fn empty_rustfmt_file_fails() {
+    fn has_rustfmt_empty_rustfmt_file_fails() {
         let dir = tempdir().expect("Failed to make a temp dir");
         {
             let file_path = dir.path().join("rustfmt.toml");
@@ -126,7 +125,7 @@ mod tests {
     }
 
     #[test]
-    fn no_rustfmt_file_at_all_fails() {
+    fn has_rustfmt_no_rustfmt_file_at_all_fails() {
         let dir = tempdir().expect("Failed to make a temp dir");
         let rule = HasRustfmtFile::default();
         let VerbosityOutcomes {

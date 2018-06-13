@@ -29,7 +29,6 @@ mod tests {
     use super::super::test_support::*;
     use super::*;
     use std::fs::{create_dir_all, File};
-    use std::io::prelude::*;
     use tempfile::tempdir;
 
     #[test]

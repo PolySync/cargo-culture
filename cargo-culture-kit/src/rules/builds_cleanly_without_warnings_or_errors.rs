@@ -109,7 +109,6 @@ impl Rule for BuildsCleanlyWithoutWarningsOrErrors {
         if !packages_cleaned {
             return RuleOutcome::Failure;
         }
-
         let mut build_cmd = Command::new(&cargo);
         build_cmd.arg("build");
         build_cmd
@@ -125,13 +124,12 @@ impl Rule for BuildsCleanlyWithoutWarningsOrErrors {
         };
         if !build_output.status.success() {
             if verbose {
-                // TODO - Resolve desired output stream for verbose content
                 let _ = writeln!(print_output, "Build command `{}` failed", command_str);
                 if let Ok(s) = String::from_utf8(build_output.stdout) {
-                    let _ = writeln!(print_output, "`{}` StdOut: {}", command_str, s);
+                    let _ = writeln!(print_output, "`{}` StdOut:\n{}\n\n", command_str, s);
                 }
                 if let Ok(s) = String::from_utf8(build_output.stderr) {
-                    let _ = writeln!(print_output, "`{}` StdErr: {}", command_str, s);
+                    let _ = writeln!(print_output, "`{}` StdErr:\n{}\n\n", command_str, s);
                 }
             }
             return RuleOutcome::Failure;
@@ -151,8 +149,292 @@ impl Rule for BuildsCleanlyWithoutWarningsOrErrors {
         };
 
         if WARNING_JSON.is_match(stdout) {
+            if verbose {
+                let _ = writeln!(
+                    print_output,
+                    "Found warnings in the cargo build command output:\n{}\n\n",
+                    stdout
+                );
+            }
             return RuleOutcome::Failure;
         }
         RuleOutcome::Success
+    }
+}
+#[cfg(test)]
+mod tests {
+    use super::super::test_support::*;
+    use super::*;
+    use std::fs::{create_dir_all, File};
+    use tempfile::tempdir;
+
+    #[test]
+    fn builds_cleanly_happy_path_flat_project() {
+        let dir = tempdir().expect("Failed to make a temp dir");
+        write_package_cargo_toml(dir.path());
+        write_clean_src_main_file(dir.path());
+        let rule = BuildsCleanlyWithoutWarningsOrErrors::default();
+        let VerbosityOutcomes {
+            verbose,
+            not_verbose,
+        } = execute_rule_against_project_dir_all_verbosities(dir.path(), &rule);
+        assert_eq!(RuleOutcome::Success, verbose.outcome);
+        assert_eq!(RuleOutcome::Success, not_verbose.outcome);
+    }
+
+    #[test]
+    fn builds_cleanly_fails_for_erroneous_main() {
+        let dir = tempdir().expect("Failed to make a temp dir");
+        write_package_cargo_toml(dir.path());
+        write_erroneous_src_main_file(dir.path());
+        let rule = BuildsCleanlyWithoutWarningsOrErrors::default();
+        let VerbosityOutcomes {
+            verbose,
+            not_verbose,
+        } = execute_rule_against_project_dir_all_verbosities(dir.path(), &rule);
+        assert_eq!(RuleOutcome::Failure, verbose.outcome);
+        assert_eq!(RuleOutcome::Failure, not_verbose.outcome);
+    }
+
+    #[test]
+    fn builds_cleanly_fails_for_warningful_main() {
+        let dir = tempdir().expect("Failed to make a temp dir");
+        write_package_cargo_toml(dir.path());
+        write_warningful_src_main_file(dir.path());
+        let rule = BuildsCleanlyWithoutWarningsOrErrors::default();
+        let VerbosityOutcomes {
+            verbose,
+            not_verbose,
+        } = execute_rule_against_project_dir_all_verbosities(dir.path(), &rule);
+        assert_eq!(RuleOutcome::Failure, verbose.outcome);
+        assert_eq!(RuleOutcome::Failure, not_verbose.outcome);
+    }
+
+    #[test]
+    fn builds_cleanly_happy_path_workspace_project() {
+        let base_dir = tempdir().expect("Failed to make a temp dir");
+        {
+            let workspace_cargo_path = base_dir.path().join("Cargo.toml");
+            let mut workspace_cargo_file =
+                File::create(workspace_cargo_path).expect("Could not make workspace Cargo file");
+            workspace_cargo_file
+                .write_all(
+                    br##"
+[workspace]
+
+members = [
+  "kid"
+]
+        "##,
+                )
+                .expect("Could not write to workspace Cargo.toml file");
+        }
+        let subproject_dir = base_dir.path().join("kid");
+        create_dir_all(&subproject_dir).expect("Could not create subproject dir");
+        write_package_cargo_toml(&subproject_dir);
+        write_clean_src_main_file(&subproject_dir);
+        let rule = BuildsCleanlyWithoutWarningsOrErrors::default();
+
+        {
+            let VerbosityOutcomes {
+                verbose,
+                not_verbose,
+            } = execute_rule_against_project_dir_all_verbosities(base_dir.path(), &rule);
+            assert_eq!(RuleOutcome::Success, verbose.outcome);
+            assert_eq!(RuleOutcome::Success, not_verbose.outcome);
+        }
+        {
+            let VerbosityOutcomes {
+                verbose,
+                not_verbose,
+            } = execute_rule_against_project_dir_all_verbosities(&subproject_dir, &rule);
+            assert_eq!(RuleOutcome::Success, verbose.outcome);
+            assert_eq!(RuleOutcome::Success, not_verbose.outcome);
+        }
+    }
+
+    #[test]
+    fn builds_cleanly_fails_for_workspace_project_with_warningful_main_in_subproject() {
+        let base_dir = tempdir().expect("Failed to make a temp dir");
+        {
+            let workspace_cargo_path = base_dir.path().join("Cargo.toml");
+            let mut workspace_cargo_file =
+                File::create(workspace_cargo_path).expect("Could not make workspace Cargo file");
+            workspace_cargo_file
+                .write_all(
+                    br##"
+[workspace]
+
+members = [
+  "kid"
+]
+        "##,
+                )
+                .expect("Could not write to workspace Cargo.toml file");
+        }
+        let subproject_dir = base_dir.path().join("kid");
+        create_dir_all(&subproject_dir).expect("Could not create subproject dir");
+        write_package_cargo_toml(&subproject_dir);
+        write_warningful_src_main_file(&subproject_dir);
+        let rule = BuildsCleanlyWithoutWarningsOrErrors::default();
+
+        {
+            let VerbosityOutcomes {
+                verbose,
+                not_verbose,
+            } = execute_rule_against_project_dir_all_verbosities(base_dir.path(), &rule);
+            assert_eq!(RuleOutcome::Failure, verbose.outcome);
+            assert_eq!(RuleOutcome::Failure, not_verbose.outcome);
+        }
+        {
+            let VerbosityOutcomes {
+                verbose,
+                not_verbose,
+            } = execute_rule_against_project_dir_all_verbosities(&subproject_dir, &rule);
+            assert_eq!(RuleOutcome::Failure, verbose.outcome);
+            assert_eq!(RuleOutcome::Failure, not_verbose.outcome);
+        }
+    }
+
+    #[test]
+    fn builds_cleanly_fails_for_workspace_project_with_erroneous_main_in_subproject() {
+        let base_dir = tempdir().expect("Failed to make a temp dir");
+        {
+            let workspace_cargo_path = base_dir.path().join("Cargo.toml");
+            let mut workspace_cargo_file =
+                File::create(workspace_cargo_path).expect("Could not make workspace Cargo file");
+            workspace_cargo_file
+                .write_all(
+                    br##"
+[workspace]
+
+members = [
+  "kid"
+]
+        "##,
+                )
+                .expect("Could not write to workspace Cargo.toml file");
+        }
+        let subproject_dir = base_dir.path().join("kid");
+        create_dir_all(&subproject_dir).expect("Could not create subproject dir");
+        write_package_cargo_toml(&subproject_dir);
+        write_erroneous_src_main_file(&subproject_dir);
+        let rule = BuildsCleanlyWithoutWarningsOrErrors::default();
+
+        {
+            let VerbosityOutcomes {
+                verbose,
+                not_verbose,
+            } = execute_rule_against_project_dir_all_verbosities(base_dir.path(), &rule);
+            assert_eq!(RuleOutcome::Failure, verbose.outcome);
+            assert_eq!(RuleOutcome::Failure, not_verbose.outcome);
+        }
+        {
+            let VerbosityOutcomes {
+                verbose,
+                not_verbose,
+            } = execute_rule_against_project_dir_all_verbosities(&subproject_dir, &rule);
+            assert_eq!(RuleOutcome::Failure, verbose.outcome);
+            assert_eq!(RuleOutcome::Failure, not_verbose.outcome);
+        }
+    }
+
+    fn write_package_cargo_toml(project_dir: &Path) {
+        let cargo_path = project_dir.join("Cargo.toml");
+        let mut cargo_file = File::create(cargo_path).expect("Could not make target file");
+        cargo_file
+            .write_all(
+                br##"[package]
+name = "kid"
+version = "0.1.0"
+authors = []
+
+[dependencies]
+
+[dev-dependencies]
+        "##,
+            )
+            .expect("Could not write to Cargo.toml file");
+    }
+
+    fn write_clean_src_main_file(project_dir: &Path) {
+        let src_dir = project_dir.join("src");
+        create_dir_all(&src_dir).expect("Could not create src dir");
+        let file_path = src_dir.join("main.rs");
+        let mut file = File::create(file_path).expect("Could not make target file");
+        file.write_all(
+            br##"//! Sample rust file for testing cargo-culture
+fn hello() { println!("Hello"); }
+
+fn main() { hello(); }
+
+#[cfg(test)]
+mod tests {
+    use super::hello;
+    #[test]
+    fn hello_does_not_panic() {
+        assert_eq!((), hello());
+    }
+}
+        "##,
+        ).expect("Could not write to target file");
+    }
+
+    fn write_warningful_src_main_file(project_dir: &Path) {
+        let src_dir = project_dir.join("src");
+        create_dir_all(&src_dir).expect("Could not create src dir");
+        let file_path = src_dir.join("main.rs");
+        let mut file = File::create(file_path).expect("Could not make target file");
+        file.write_all(
+            br##"//! Sample rust file for testing cargo-culture
+fn hello() { println!("Hello"); }
+
+fn main() { println!("Note we didn't use that function, which should cause a warning"); }
+        "##,
+        ).expect("Could not write to target file");
+    }
+
+    fn write_erroneous_src_main_file(project_dir: &Path) {
+        let src_dir = project_dir.join("src");
+        create_dir_all(&src_dir).expect("Could not create src dir");
+        let file_path = src_dir.join("main.rs");
+        let mut file = File::create(file_path).expect("Could not make target file");
+        file.write_all(
+            br##"//! Sample rust file for testing cargo-culture
+fn main() { totally_not_a_function(); }
+        "##,
+        ).expect("Could not write to target file");
+    }
+
+    #[test]
+    fn builds_cleanly_empty_dir_fails() {
+        let dir = tempdir().expect("Failed to make a temp dir");
+        let rule = BuildsCleanlyWithoutWarningsOrErrors::default();
+        let VerbosityOutcomes {
+            verbose,
+            not_verbose,
+        } = execute_rule_against_project_dir_all_verbosities(dir.path(), &rule);
+        assert_eq!(RuleOutcome::Failure, verbose.outcome);
+        assert_eq!(RuleOutcome::Failure, not_verbose.outcome);
+    }
+
+    #[test]
+    fn builds_cleanly_non_toml_manifest_fails() {
+        let dir = tempdir().expect("Failed to make a temp dir");
+        {
+            let cargo_path = dir.path().join("Cargo.toml");
+            let mut cargo_file = File::create(cargo_path).expect("Could not make target file");
+            cargo_file
+                .write_all(br##"{"wat": true}"##)
+                .expect("Could not write to Cargo.toml file");
+        }
+        write_clean_src_main_file(dir.path());
+        let rule = BuildsCleanlyWithoutWarningsOrErrors::default();
+        let VerbosityOutcomes {
+            verbose,
+            not_verbose,
+        } = execute_rule_against_project_dir_all_verbosities(dir.path(), &rule);
+        assert_eq!(RuleOutcome::Failure, verbose.outcome);
+        assert_eq!(RuleOutcome::Failure, not_verbose.outcome);
     }
 }
