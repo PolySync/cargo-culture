@@ -1,4 +1,5 @@
 extern crate cargo_culture_kit;
+extern crate failure;
 
 #[macro_use]
 extern crate structopt;
@@ -12,7 +13,9 @@ extern crate tempfile;
 
 use cargo_culture_kit::{check_culture, check_culture_default, default_rules,
                         filter_to_requested_rules_from_checklist_file, find_extant_culture_file,
-                        CheckError, ExitCode, OutcomesByDescription, Rule};
+                        ExitCode, FilterError, OutcomesByDescription, Rule,
+                        DEFAULT_CULTURE_CHECKLIST_FILE_NAME};
+use failure::Error;
 use std::io::stdout;
 use std::path::{Path, PathBuf};
 use structopt::StructOpt;
@@ -48,7 +51,7 @@ fn main() {
     )
 }
 
-fn check_culture_cli() -> Result<OutcomesByDescription, CheckError> {
+fn check_culture_cli() -> Result<OutcomesByDescription, Error> {
     let Opt::Culture {
         manifest_path,
         culture_checklist_file_path,
@@ -56,12 +59,17 @@ fn check_culture_cli() -> Result<OutcomesByDescription, CheckError> {
     } = Opt::from_args();
     match culture_checklist_file_path {
         Some(ref f) if f.is_file() => check_culture_from_checklist(&manifest_path, verbose, f),
-        Some(f) => Err(CheckError::UnderspecifiedRules(format!(
+        Some(f) => Err(FilterError::RuleChecklistReadError(format!(
             "Could not find requested rules checklist file {:?}",
             f
-        ))),
-        None => match find_extant_culture_file(&PathBuf::from("./.culture")) {
-            None => check_culture_default(manifest_path, verbose, &mut stdout()),
+        )).into()),
+        None => match find_extant_culture_file(&PathBuf::from(DEFAULT_CULTURE_CHECKLIST_FILE_NAME))
+        {
+            None => Ok(check_culture_default(
+                manifest_path,
+                verbose,
+                &mut stdout(),
+            )?),
             Some(ref f) => check_culture_from_checklist(&manifest_path, verbose, f),
         },
     }
@@ -71,13 +79,18 @@ fn check_culture_from_checklist(
     manifest_path: &Path,
     verbose: bool,
     extant_rule_checklist_file: &Path,
-) -> Result<OutcomesByDescription, CheckError> {
+) -> Result<OutcomesByDescription, Error> {
     assert!(extant_rule_checklist_file.is_file());
     let rules = default_rules();
     let rules_refs = rules.iter().map(|r| r.as_ref()).collect::<Vec<&Rule>>();
     let filtered_rules =
         filter_to_requested_rules_from_checklist_file(extant_rule_checklist_file, &rules_refs)?;
-    check_culture(manifest_path, verbose, &mut stdout(), &filtered_rules)
+    Ok(check_culture(
+        manifest_path,
+        verbose,
+        &mut stdout(),
+        &filtered_rules,
+    )?)
 }
 
 #[cfg(test)]

@@ -5,6 +5,16 @@ use regex::Regex;
 use std::io::Write;
 use std::path::Path;
 
+/// Rule that asserts a good Rust project:
+/// "Should have a file suggesting the use of a continuous integration system."
+///
+/// # Justification
+///
+/// Continuous integration can reduce the odds of project functionality
+/// regression and several options are available to make this process
+/// accessible for Rust projects.
+///
+/// See also: https://github.com/japaric/trust
 #[derive(Default, Debug)]
 pub struct HasContinuousIntegrationFile;
 

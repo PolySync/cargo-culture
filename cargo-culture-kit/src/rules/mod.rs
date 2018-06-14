@@ -1,3 +1,5 @@
+//! Provides the `Rule` trait and several implementations,
+//! available through the `default_rules()` function.
 mod builds_cleanly_without_warnings_or_errors;
 mod cargo_metadata_readable;
 mod has_continuous_integration_file;
@@ -68,6 +70,8 @@ pub trait Rule: Debug {
     ) -> RuleOutcome;
 }
 
+/// Constructs new instances of the default `Rule`s
+/// recommended as a starting point by the project maintainers.
 pub fn default_rules() -> Vec<Box<Rule>> {
     vec![
         Box::new(CargoMetadataReadable::default()),
@@ -83,7 +87,19 @@ pub fn default_rules() -> Vec<Box<Rule>> {
 }
 
 #[cfg(test)]
-mod tests {}
+mod tests {
+    use super::*;
+    use std::collections::HashSet;
+    #[test]
+    fn default_rules_all_have_unique_descriptions() {
+        let rules = default_rules();
+        let mut set = HashSet::new();
+        for r in &rules {
+            set.insert(r.description().to_string());
+        }
+        assert_eq!(rules.len(), set.len());
+    }
+}
 
 #[cfg(test)]
 pub(crate) mod test_support {

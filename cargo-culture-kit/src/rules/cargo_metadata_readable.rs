@@ -3,6 +3,14 @@ use cargo_metadata::Metadata;
 use std::io::Write;
 use std::path::Path;
 
+/// Rule that asserts a good Rust project:
+/// "Should have a well-formed Cargo.toml file readable by `cargo metadata`"
+///
+/// # Justification
+///
+/// Cargo is the Rust community-wide standard tool for managing Rust projects
+/// and packages. An invalid or absent Cargo.toml file suggests the use of
+/// a nonstandard build methodology, or some accident of misconfiguration.
 #[derive(Default, Debug)]
 pub struct CargoMetadataReadable;
 
@@ -11,6 +19,10 @@ impl Rule for CargoMetadataReadable {
         "Should have a well-formed Cargo.toml file readable by `cargo metadata`"
     }
 
+    /// Due to the layout of `Rule` execution wherein cargo metadata is read
+    /// and parsed as part of `check_culture` and then handed off to the
+    /// `Rule`s being checked, `evaluate` will declare a success if the
+    /// `metadata` parameter is `Some`.
     fn evaluate(
         &self,
         _: &Path,

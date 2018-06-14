@@ -3,39 +3,7 @@ use super::RuleOutcome;
 use cargo_metadata::Metadata;
 use regex::Regex;
 use std::convert::From;
-use std::io::ErrorKind;
 use std::path::{Path, PathBuf};
-
-#[derive(Debug, PartialEq)]
-pub enum FilePresence {
-    Absent,
-    Empty,
-    Present,
-    Unknown,
-}
-
-impl From<FilePresence> for RuleOutcome {
-    fn from(file_presence: FilePresence) -> Self {
-        match file_presence {
-            FilePresence::Absent => RuleOutcome::Failure,
-            FilePresence::Empty => RuleOutcome::Failure,
-            FilePresence::Present => RuleOutcome::Success,
-            FilePresence::Unknown => RuleOutcome::Undetermined,
-        }
-    }
-}
-
-pub fn is_file_present(path: &Path) -> FilePresence {
-    let metadata = match path.metadata() {
-        Err(ref e) if e.kind() == ErrorKind::NotFound => return FilePresence::Absent,
-        Err(_) => return FilePresence::Unknown,
-        Ok(metadata) => metadata,
-    };
-    if metadata.len() == 0 {
-        return FilePresence::Empty;
-    }
-    FilePresence::Present
-}
 
 pub fn shallow_scan_project_dir_for_nonempty_file_name_match(
     regex: &Regex,
@@ -130,22 +98,38 @@ mod tests {
     use std::io::Write;
     use tempfile::TempDir;
 
+    // TODO - some more direct tests of the search functions,
+    // currently mostly tested indirectly through the
+
     #[test]
     fn file_present_follows_file_lifecycle() {
         let dir = TempDir::new().unwrap();
         let file_path = dir.path().join("foo.txt");
-        assert_eq!(FilePresence::Absent, is_file_present(&file_path));
+        let r = Regex::new(r"^fo").unwrap();
+        let manifest_path = &dir.path().join("Cargo.toml");
+        assert_eq!(
+            RuleOutcome::Failure,
+            shallow_scan_project_dir_for_nonempty_file_name_match(&r, manifest_path)
+        );
 
         let mut f = File::create(&file_path).unwrap();
         f.sync_all().unwrap();
-        assert_eq!(FilePresence::Empty, is_file_present(&file_path));
+
+        assert_eq!(
+            RuleOutcome::Failure,
+            shallow_scan_project_dir_for_nonempty_file_name_match(&r, manifest_path)
+        );
+
         f.write_all(b"Hello, world!").unwrap();
         f.sync_all().unwrap();
-        assert_eq!(FilePresence::Present, is_file_present(&file_path));
+        assert_eq!(
+            RuleOutcome::Success,
+            shallow_scan_project_dir_for_nonempty_file_name_match(&r, manifest_path)
+        );
 
         let _ = dir.close();
     }
 
-    // TODO - force an IO error to observe the Unknown variant
+    // TODO - force an IO error to observe the Undetermined variant
     // TODO - explicitly handle directories vs non-directories
 }

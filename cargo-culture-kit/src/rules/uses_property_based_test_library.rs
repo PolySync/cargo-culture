@@ -4,6 +4,38 @@ use regex::Regex;
 use std::io::Write;
 use std::path::Path;
 
+/// Rule that asserts a good Rust project:
+/// "Should be making an effort to use property based tests."
+///
+/// # Justification
+///
+/// Property based testing is an advanced testing technique
+/// that combines pseudo-random test input generation with
+/// checking desired behavioral characteristics.
+///
+/// Property based testing libraries provide tools to
+/// generate many input values for a test, kind of like
+/// a type-safe and typically shorter-running fuzz test.
+///
+/// Since property based tests encourage reasoning about
+/// how input data affects the state-space of the program
+/// and can help rapidly achieve more comprehensive correctness
+/// assurances, this `Rule` recommends it here as important
+/// for quality-attentive projects.
+///
+/// # See Also
+///
+/// * [proptest](https://github.com/AltSysrq/proptest)
+/// * [quickcheck](https://github.com/BurntSushi/quickcheck)
+/// * [suppositions](https://github.com/cstorey/suppositions)
+///
+///
+/// # Caveats
+///
+/// This `Rule` presently only checks whether or not
+/// a known property-based test library is present in the
+/// project dependencies (or dev-dependencies). Actually
+/// writing good tests is an exercise left to the reader.
 #[derive(Debug, Default)]
 pub struct UsesPropertyBasedTestLibrary;
 

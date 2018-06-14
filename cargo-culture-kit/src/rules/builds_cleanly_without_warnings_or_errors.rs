@@ -6,8 +6,104 @@ use std::path::Path;
 use std::process::Command;
 use std::str::from_utf8;
 
+/// Rule that asserts a good Rust project:
+/// "Should `cargo clean` and `cargo build` without any warnings or errors."
+///
+/// # Justification
+///
+/// A Rust project striving for excellence and accessibility should be able to
+/// be built "out of the box" with common tooling and do so without any
+/// superfluous warnings or build errors. The `clean` step is necessary to get
+/// complete error/warning messages repeatably.
+///
+/// While not every warning is appropriate to be absent from every project,
+/// developers have the ability to thoughtfully silence warnings that are not
+/// relevant to the present use case.
+///
+/// # Caveats
+///
+/// Though this rule makes an effort to avoid needless work by targeting
+/// the `cargo clean` invocations to the project's own packages,
+/// unless dependencies have been previously built, `evaluate` is likely
+/// to take a while.
 #[derive(Debug, Default)]
 pub struct BuildsCleanlyWithoutWarningsOrErrors;
+
+impl Rule for BuildsCleanlyWithoutWarningsOrErrors {
+    fn description(&self) -> &'static str {
+        "Should `cargo clean` and `cargo build` without any warnings or errors."
+    }
+
+    fn evaluate(
+        &self,
+        cargo_manifest_file_path: &Path,
+        verbose: bool,
+        metadata: &Option<Metadata>,
+        print_output: &mut Write,
+    ) -> RuleOutcome {
+        let cargo = get_cargo_command();
+        let packages_cleaned = clean_packages(
+            &cargo,
+            cargo_manifest_file_path,
+            verbose,
+            metadata,
+            print_output,
+        );
+        if !packages_cleaned {
+            return RuleOutcome::Failure;
+        }
+        let mut build_cmd = Command::new(&cargo);
+        build_cmd.arg("build");
+        build_cmd
+            .arg("--manifest-path")
+            .arg(cargo_manifest_file_path);
+        build_cmd.arg("--message-format=json");
+        let command_str = format!("{:?}", build_cmd);
+        let build_output = match build_cmd.output() {
+            Ok(o) => o,
+            Err(_e) => {
+                return RuleOutcome::Undetermined;
+            }
+        };
+        if !build_output.status.success() {
+            if verbose {
+                let _ = writeln!(print_output, "Build command `{}` failed", command_str);
+                if let Ok(s) = String::from_utf8(build_output.stdout) {
+                    let _ = writeln!(print_output, "`{}` StdOut:\n{}\n\n", command_str, s);
+                }
+                if let Ok(s) = String::from_utf8(build_output.stderr) {
+                    let _ = writeln!(print_output, "`{}` StdErr:\n{}\n\n", command_str, s);
+                }
+            }
+            return RuleOutcome::Failure;
+        }
+        let stdout = match from_utf8(&build_output.stdout) {
+            Ok(stdout) => stdout,
+            Err(e) => {
+                if verbose {
+                    let _ = writeln!(
+                        print_output,
+                        "Reading stdout for command `{}` failed : {}",
+                        command_str, e
+                    );
+                }
+                return RuleOutcome::Undetermined;
+            }
+        };
+
+        if WARNING_JSON.is_match(stdout) {
+            if verbose {
+                let _ = writeln!(
+                    print_output,
+                    "Found warnings in the cargo build command output:\n{}\n\n",
+                    stdout
+                );
+            }
+            return RuleOutcome::Failure;
+        }
+        RuleOutcome::Success
+    }
+}
 
 lazy_static! {
     static ref WARNING_JSON: Regex = Regex::new(".*\"level\":\"warning\".*")
@@ -86,81 +182,6 @@ fn get_cargo_command() -> String {
     ::std::env::var("CARGO").unwrap_or_else(|_| String::from("cargo"))
 }
 
-impl Rule for BuildsCleanlyWithoutWarningsOrErrors {
-    fn description(&self) -> &'static str {
-        "Should `cargo clean` and `cargo build` without any warnings or errors."
-    }
-
-    fn evaluate(
-        &self,
-        cargo_manifest_file_path: &Path,
-        verbose: bool,
-        metadata: &Option<Metadata>,
-        print_output: &mut Write,
-    ) -> RuleOutcome {
-        let cargo = get_cargo_command();
-        let packages_cleaned = clean_packages(
-            &cargo,
-            cargo_manifest_file_path,
-            verbose,
-            metadata,
-            print_output,
-        );
-        if !packages_cleaned {
-            return RuleOutcome::Failure;
-        }
-        let mut build_cmd = Command::new(&cargo);
-        build_cmd.arg("build");
-        build_cmd
-            .arg("--manifest-path")
-            .arg(cargo_manifest_file_path);
-        build_cmd.arg("--message-format=json");
-        let command_str = format!("{:?}", build_cmd);
-        let build_output = match build_cmd.output() {
-            Ok(o) => o,
-            Err(_e) => {
-                return RuleOutcome::Undetermined;
-            }
-        };
-        if !build_output.status.success() {
-            if verbose {
-                let _ = writeln!(print_output, "Build command `{}` failed", command_str);
-                if let Ok(s) = String::from_utf8(build_output.stdout) {
-                    let _ = writeln!(print_output, "`{}` StdOut:\n{}\n\n", command_str, s);
-                }
-                if let Ok(s) = String::from_utf8(build_output.stderr) {
-                    let _ = writeln!(print_output, "`{}` StdErr:\n{}\n\n", command_str, s);
-                }
-            }
-            return RuleOutcome::Failure;
-        }
-        let stdout = match from_utf8(&build_output.stdout) {
-            Ok(stdout) => stdout,
-            Err(e) => {
-                if verbose {
-                    let _ = writeln!(
-                        print_output,
-                        "Reading stdout for command `{}` failed : {}",
-                        command_str, e
-                    );
-                }
-                return RuleOutcome::Undetermined;
-            }
-        };
-
-        if WARNING_JSON.is_match(stdout) {
-            if verbose {
-                let _ = writeln!(
-                    print_output,
-                    "Found warnings in the cargo build command output:\n{}\n\n",
-                    stdout
-                );
-            }
-            return RuleOutcome::Failure;
-        }
-        RuleOutcome::Success
-    }
-}
 #[cfg(test)]
 mod tests {
     use super::super::test_support::*;

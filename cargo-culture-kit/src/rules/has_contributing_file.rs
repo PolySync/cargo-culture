@@ -5,6 +5,15 @@ use regex::Regex;
 use std::io::Write;
 use std::path::Path;
 
+/// Rule that asserts a good Rust project:
+/// "Should have a CONTRIBUTING file in the project directory."
+///
+/// # Justification
+///
+/// A CONTRIBUTING file is a starting point for would-be collaborators
+/// popularized in the open-source world. Even for closed-source projects, a
+/// CONTRIBUTING file can be a gateway to developer-focused guidance, and thus
+/// useful for on-boarding in a more targeted manner than the general README.
 #[derive(Debug, Default)]
 pub struct HasContributingFile;
 

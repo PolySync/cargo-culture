@@ -1,3 +1,63 @@
+//! cargo-culture-kit provides machinery for checking
+//! project-level rules about Rust best practices.
+//!
+//! The primary function entry points are `check_culture` and
+//! `check_culture_default`.
+//!
+//! The core trait is `Rule`, which represents a single project-level property
+//! that has a clear description and can be checked.
+//!
+//! # Examples
+//!
+//! `check_culture_default` is the easiest way to get started,
+//! as it provides a thin wrapper around the core `check_culture`
+//! function in combination with the `Rule`s provided by the
+//! `default_rules()` function.
+//!
+//! ```
+//! use cargo_culture_kit::{check_culture_default, OutcomeStats};
+//! use std::path::PathBuf;
+//!
+//! let cargo_manifest = PathBuf::from("../cargo-culture/Cargo.toml");
+//! let verbose = false;
+//!
+//! let outcomes = check_culture_default(
+//!     cargo_manifest, verbose, &mut std::io::stdout()
+//!     )
+//!     .expect("Unexpected trouble checking culture rules:");
+//!
+//! let stats = OutcomeStats::from(outcomes);
+//! assert!(stats.is_success());
+//! assert_eq!(stats.fail_count, 0);
+//! assert_eq!(stats.undetermined_count, 0);
+//! ```
+//!
+//! If you want to use a specific `Rule` or group of `Rule`s,
+//! the `check_culture` function is the right place to look.
+//!
+//! ```
+//! use cargo_culture_kit::{check_culture, OutcomeStats, HasLicenseFile};
+//! use std::path::PathBuf;
+//!
+//! let rule = HasLicenseFile::default();
+//! let cargo_manifest = PathBuf::from("../cargo-culture/Cargo.toml");
+//! let verbose = false;
+//!
+//! let outcomes = check_culture(
+//!     cargo_manifest, verbose, &mut std::io::stdout(), &[&rule]
+//!     )
+//!     .expect("Unexpected trouble checking culture rules: ");
+//!
+//! let stats = OutcomeStats::from(outcomes);
+//! assert!(stats.is_success());
+//! assert_eq!(stats.success_count, 1);
+//! assert_eq!(stats.fail_count, 0);
+//! assert_eq!(stats.undetermined_count, 0);
+//! ```
+//!
+
+#![deny(missing_docs)]
+
 #[cfg(test)]
 extern crate tempfile;
 
@@ -16,12 +76,16 @@ extern crate colored;
 
 extern crate regex;
 
-mod checklist;
 mod file;
+
+pub mod checklist;
+pub mod exit_code;
 pub mod rules;
 
 pub use checklist::{filter_to_requested_rules_by_description,
-                    filter_to_requested_rules_from_checklist_file, find_extant_culture_file};
+                    filter_to_requested_rules_from_checklist_file, find_extant_culture_file,
+                    FilterError, DEFAULT_CULTURE_CHECKLIST_FILE_NAME};
+pub use exit_code::ExitCode;
 pub use rules::{default_rules, BuildsCleanlyWithoutWarningsOrErrors, CargoMetadataReadable,
                 HasContinuousIntegrationFile, HasContributingFile, HasLicenseFile, HasReadmeFile,
                 HasRustfmtFile, PassesMultipleTests, Rule, RuleOutcome,
@@ -40,14 +104,10 @@ use std::path::{Path, PathBuf};
 /// interpreted as erroneous.
 #[derive(Debug, Clone, Eq, Fail, PartialEq, Hash)]
 pub enum CheckError {
-    #[fail(display = "There was an error while attempting to resolve the desired set of rules to check: {}",
-           _0)]
-    UnderspecifiedRules(String),
-    #[fail(display = "A described rule specified was not in the available set of Rule implementations: {}",
-           rule_description)]
-    RequestedRuleNotFound { rule_description: String },
     #[fail(display = "There was an error while attempting to print content to the output writer: {}",
            _0)]
+    /// Failure during writing human-oriented textual content to an output
+    /// `Write` instance.
     PrintOutputFailure(String),
 }
 
@@ -55,6 +115,30 @@ pub enum CheckError {
 /// `default_rules`.
 ///
 /// See `check_culture` for more details.
+///
+/// # Examples
+///
+/// ```
+/// use cargo_culture_kit::{check_culture_default, OutcomeStats};
+/// use std::path::PathBuf;
+///
+/// let cargo_manifest = PathBuf::from("../cargo-culture/Cargo.toml");
+/// let verbose = false;
+///
+/// let outcomes = check_culture_default(cargo_manifest, verbose, &mut
+/// std::io::stdout()) .expect("Unexpected trouble checking culture rules:
+/// ");
+///
+/// let stats = OutcomeStats::from(outcomes);
+/// assert!(stats.is_success());
+/// assert_eq!(stats.fail_count, 0);
+/// assert_eq!(stats.undetermined_count, 0);
+/// ```
+///
+/// # Errors
+///
+/// Returns an error if the program cannot write to the supplied `print_output`
+/// instance.
 pub fn check_culture_default<P: AsRef<Path>, W: Write>(
     cargo_manifest_file_path: P,
     verbose: bool,
@@ -62,14 +146,7 @@ pub fn check_culture_default<P: AsRef<Path>, W: Write>(
 ) -> Result<OutcomesByDescription, CheckError> {
     let rules = default_rules();
     let rule_refs = rules.iter().map(|r| r.as_ref()).collect::<Vec<&Rule>>();
-    let descriptions: Vec<&str> = rules.iter().map(|r| r.description()).collect();
-    let filtered_rules = filter_to_requested_rules_by_description(&rule_refs, &descriptions)?;
-    check_culture(
-        cargo_manifest_file_path,
-        verbose,
-        print_output,
-        &filtered_rules,
-    )
+    check_culture(cargo_manifest_file_path, verbose, print_output, &rule_refs)
 }
 
 /// Given a set of `Rule`s, evaluate the rules
@@ -77,6 +154,44 @@ pub fn check_culture_default<P: AsRef<Path>, W: Write>(
 ///
 /// Primary entry point for this library.
 ///
+/// `cargo_manifest_file_path` should point to a project's extant `Cargo.toml`
+/// file. Either a crate-level or a workspace-level toml file should work.
+///
+/// `verbose` controls whether or not to produce additional human-readable
+/// reporting.
+///
+/// `print_output` is the `Write` instance where `Rule` evaluation summaries
+/// are printed, as well as the location where `verbose` content may be dumped.
+/// `&mut std::io::stdout()` is a common instance used by non-test applications.
+///
+/// `rules` is the complete set of `Rule` instances which will be evaluated for
+/// the project specified by `cargo_manifest_file_path`.
+///
+/// # Examples
+///
+/// ```
+/// use cargo_culture_kit::{check_culture, OutcomeStats, HasLicenseFile};
+/// use std::path::PathBuf;
+///
+/// let rule = HasLicenseFile::default();
+/// let cargo_manifest = PathBuf::from("../cargo-culture/Cargo.toml");
+/// let verbose = false;
+///
+/// let outcomes = check_culture(cargo_manifest, verbose, &mut
+/// std::io::stdout(),     &[&rule])
+///     .expect("Unexpected trouble checking culture rules: ");
+///
+/// let stats = OutcomeStats::from(outcomes);
+/// assert!(stats.is_success());
+/// assert_eq!(stats.success_count, 1);
+/// assert_eq!(stats.fail_count, 0);
+/// assert_eq!(stats.undetermined_count, 0);
+/// ```
+///
+/// # Errors
+///
+/// Returns an error if the program cannot write to the supplied `print_output`
+/// instance.
 pub fn check_culture<P: AsRef<Path>, W: Write>(
     cargo_manifest_file_path: P,
     verbose: bool,
@@ -106,7 +221,7 @@ fn read_cargo_metadata<P: AsRef<Path>, W: Write>(
     match metadata_result {
         Ok(m) => Ok(Some(m)),
         Err(e) => {
-            if verbose && writeln!(print_output, "{}", e).is_err() {
+            if verbose && writeln!(print_output, "cargo metadata problem: {}", e).is_err() {
                 return Err(CheckError::PrintOutputFailure(
                     "Error reporting project's `cargo metadata`".to_string(),
                 ));
@@ -116,7 +231,7 @@ fn read_cargo_metadata<P: AsRef<Path>, W: Write>(
     }
 }
 
-pub fn evaluate_rules<P: AsRef<Path>, W: Write, M: Borrow<Option<Metadata>>>(
+fn evaluate_rules<P: AsRef<Path>, W: Write, M: Borrow<Option<Metadata>>>(
     cargo_manifest_file_path: P,
     verbose: bool,
     metadata: M,
@@ -153,7 +268,7 @@ fn print_outcome_stats<W: Write>(
         conclusion,
         outcome_stats.success_count,
         outcome_stats.fail_count,
-        outcome_stats.unknown_count
+        outcome_stats.undetermined_count
     ).is_err()
     {
         return Err(CheckError::PrintOutputFailure(
@@ -171,12 +286,12 @@ where
     T: Borrow<OutcomesByDescription>,
 {
     fn from(full_outcomes: T) -> OutcomeStats {
-        let mut stats = OutcomeStats::empty();
+        let mut stats = OutcomeStats::default();
         for outcome in full_outcomes.borrow().values() {
             match outcome {
                 RuleOutcome::Success => stats.success_count += 1,
                 RuleOutcome::Failure => stats.fail_count += 1,
-                RuleOutcome::Undetermined => stats.unknown_count += 1,
+                RuleOutcome::Undetermined => stats.undetermined_count += 1,
             }
         }
         stats
@@ -218,7 +333,12 @@ fn print_rule_evaluation<P: AsRef<Path>, W: Write, M: Borrow<Option<Metadata>>>(
         metadata.borrow(),
         print_output,
     );
-    writeln!(print_output, " ... {}", summary_str(&outcome)).expect("Could not write rule outcome");
+    if let Err(e) = writeln!(print_output, " ... {}", summary_str(&outcome)) {
+        return Err(CheckError::PrintOutputFailure(format!(
+            "Could not write rule outcome to print_output: {:?}",
+            e
+        )));
+    }
     Ok(outcome)
 }
 
@@ -231,12 +351,15 @@ fn summary_str<T: Borrow<RuleOutcome>>(outcome: T) -> colored::ColoredString {
 }
 
 /// Summary of result statistics generated from aggregating `RuleOutcome`s
-/// results
-#[derive(Clone, Debug, PartialEq)]
+/// results for multiple Rule evaluations
+#[derive(Clone, Debug, Default, PartialEq)]
 pub struct OutcomeStats {
+    /// The number of `RuleOutcome::Success` instances observed
     pub success_count: usize,
+    /// The number of `RuleOutcome::Failure` instances observed
     pub fail_count: usize,
-    pub unknown_count: usize,
+    /// The number of `RuleOutcome::Undetermined` instances observed
+    pub undetermined_count: usize,
 }
 
 impl OutcomeStats {
@@ -250,72 +373,16 @@ impl OutcomeStats {
 
 impl<'a> From<&'a OutcomeStats> for RuleOutcome {
     fn from(stats: &'a OutcomeStats) -> Self {
-        match (stats.success_count, stats.fail_count, stats.unknown_count) {
+        match (
+            stats.success_count,
+            stats.fail_count,
+            stats.undetermined_count,
+        ) {
             (0, 0, 0) => RuleOutcome::Undetermined,
             (s, 0, 0) if s > 0 => RuleOutcome::Success,
             (_, 0, _) => RuleOutcome::Undetermined,
             (_, f, _) if f > 0 => RuleOutcome::Failure,
             _ => unreachable!(),
-        }
-    }
-}
-
-impl OutcomeStats {
-    pub fn empty() -> Self {
-        OutcomeStats {
-            success_count: 0,
-            fail_count: 0,
-            unknown_count: 0,
-        }
-    }
-}
-
-/// A means of genericizing expected process exit code
-pub trait ExitCode {
-    fn exit_code(&self) -> i32;
-}
-
-impl ExitCode for RuleOutcome {
-    fn exit_code(&self) -> i32 {
-        match *self {
-            RuleOutcome::Success => 0,
-            RuleOutcome::Failure => 1,
-            RuleOutcome::Undetermined => 2,
-        }
-    }
-}
-
-impl ExitCode for OutcomeStats {
-    fn exit_code(&self) -> i32 {
-        RuleOutcome::from(self).exit_code()
-    }
-}
-
-impl ExitCode for OutcomesByDescription {
-    fn exit_code(&self) -> i32 {
-        OutcomeStats::from(self).exit_code()
-    }
-}
-
-impl ExitCode for CheckError {
-    fn exit_code(&self) -> i32 {
-        match *self {
-            CheckError::UnderspecifiedRules(_) => 3,
-            CheckError::RequestedRuleNotFound { .. } => 4,
-            CheckError::PrintOutputFailure(_) => 5,
-        }
-    }
-}
-
-impl<T, E> ExitCode for Result<T, E>
-where
-    T: ExitCode,
-    E: ExitCode,
-{
-    fn exit_code(&self) -> i32 {
-        match self {
-            Ok(ref r) => r.exit_code(),
-            Err(e) => e.exit_code(),
         }
     }
 }
@@ -337,8 +404,12 @@ mod tests {
     prop_compose! {
         fn arb_stats()(success in any::<usize>(),
                        fail in any::<usize>(),
-                        unknown in any::<usize>()) -> OutcomeStats {
-            OutcomeStats { success_count: success, fail_count: fail, unknown_count: unknown }
+                        undetermined in any::<usize>()) -> OutcomeStats {
+            OutcomeStats {
+                success_count: success,
+                fail_count: fail,
+                undetermined_count: undetermined
+            }
         }
     }
 

@@ -6,14 +6,31 @@ use std::path::Path;
 use std::process::Command;
 use std::str::from_utf8;
 
+/// Rule that asserts a good Rust project:
+/// "Project should have multiple tests which pass."
+///
+/// # Justification
+///
+/// Some degree of automated testing is necessary for nearly all code,
+/// and Rust makes adding tests nearly painless. The exact number
+/// of tests is highly situational, but there should be more than
+/// one, as even brand-new `cargo` library projects are supplied with
+/// a dummy test by default.
+///
+/// # Caveats
+///
+/// This rule will actually attempt to run a project's tests through
+/// `cargo test`. If this `Rule` is executed before the project has
+/// been built or tested at all, the process of acquiring dependencies
+/// and building them may take a while.
+#[derive(Default, Debug)]
+pub struct PassesMultipleTests;
+
 lazy_static! {
     static ref TEST_RESULT_NUM_PASSED: Regex =
         Regex::new(r"(?m)^test result: ok. (?P<num_passed>\d+) passed;")
             .expect("Failed to create regex for PassesMultipleTests.");
 }
-
-#[derive(Default, Debug)]
-pub struct PassesMultipleTests;
 
 impl Rule for PassesMultipleTests {
     fn description(&self) -> &'static str {

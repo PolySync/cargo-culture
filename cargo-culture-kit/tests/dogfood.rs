@@ -52,7 +52,7 @@ fn assert_checks_default_culture(cargo_manifest_file_path: &Path) {
                 OutcomeStats {
                     success_count: 9,
                     fail_count: 0,
-                    unknown_count: 0,
+                    undetermined_count: 0,
                 },
                 stats
             );

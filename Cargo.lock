@@ -68,6 +68,7 @@ name = "cargo-culture"
 version = "0.1.0"
 dependencies = [
  "cargo-culture-kit 0.1.0",
+ "failure 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "proptest 0.7.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "structopt 0.2.10 (registry+https://github.com/rust-lang/crates.io-index)",
  "tempfile 3.0.2 (registry+https://github.com/rust-lang/crates.io-index)",
