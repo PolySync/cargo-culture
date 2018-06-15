@@ -15,7 +15,7 @@
 //! `default_rules()` function.
 //!
 //! ```
-//! use cargo_culture_kit::{check_culture_default, OutcomeStats};
+//! use cargo_culture_kit::{check_culture_default, IsSuccess, OutcomeStats};
 //! use std::path::PathBuf;
 //!
 //! let cargo_manifest = PathBuf::from("../cargo-culture/Cargo.toml");
@@ -36,8 +36,8 @@
 //! the `check_culture` function is the right place to look.
 //!
 //! ```
-//! use cargo_culture_kit::{check_culture, OutcomeStats, HasLicenseFile};
-//! use std::path::PathBuf;
+//! use cargo_culture_kit::{check_culture, IsSuccess, OutcomeStats,
+//! HasLicenseFile}; use std::path::PathBuf;
 //!
 //! let rule = HasLicenseFile::default();
 //! let cargo_manifest = PathBuf::from("../cargo-culture/Cargo.toml");
@@ -91,7 +91,7 @@ pub use rules::{default_rules, BuildsCleanlyWithoutWarningsOrErrors, CargoMetada
                 HasRustfmtFile, PassesMultipleTests, Rule, RuleOutcome,
                 UsesPropertyBasedTestLibrary};
 
-use cargo_metadata::Metadata;
+pub use cargo_metadata::Metadata as CargoMetadata;
 use colored::*;
 use std::borrow::Borrow;
 use std::collections::HashMap;
@@ -119,7 +119,7 @@ pub enum CheckError {
 /// # Examples
 ///
 /// ```
-/// use cargo_culture_kit::{check_culture_default, OutcomeStats};
+/// use cargo_culture_kit::{check_culture_default, IsSuccess, OutcomeStats};
 /// use std::path::PathBuf;
 ///
 /// let cargo_manifest = PathBuf::from("../cargo-culture/Cargo.toml");
@@ -170,8 +170,8 @@ pub fn check_culture_default<P: AsRef<Path>, W: Write>(
 /// # Examples
 ///
 /// ```
-/// use cargo_culture_kit::{check_culture, OutcomeStats, HasLicenseFile};
-/// use std::path::PathBuf;
+/// use cargo_culture_kit::{check_culture, IsSuccess, OutcomeStats,
+/// HasLicenseFile}; use std::path::PathBuf;
 ///
 /// let rule = HasLicenseFile::default();
 /// let cargo_manifest = PathBuf::from("../cargo-culture/Cargo.toml");
@@ -215,7 +215,7 @@ fn read_cargo_metadata<P: AsRef<Path>, W: Write>(
     cargo_manifest_file_path: P,
     verbose: bool,
     print_output: &mut W,
-) -> Result<Option<Metadata>, CheckError> {
+) -> Result<Option<CargoMetadata>, CheckError> {
     let manifest_path: PathBuf = cargo_manifest_file_path.as_ref().to_path_buf();
     let metadata_result = cargo_metadata::metadata(Some(manifest_path.as_ref()));
     match metadata_result {
@@ -231,7 +231,7 @@ fn read_cargo_metadata<P: AsRef<Path>, W: Write>(
     }
 }
 
-fn evaluate_rules<P: AsRef<Path>, W: Write, M: Borrow<Option<Metadata>>>(
+fn evaluate_rules<P: AsRef<Path>, W: Write, M: Borrow<Option<CargoMetadata>>>(
     cargo_manifest_file_path: P,
     verbose: bool,
     metadata: M,
@@ -281,6 +281,43 @@ fn print_outcome_stats<W: Write>(
 /// Map between the `description` of `Rule`s and the outcome of their execution
 pub type OutcomesByDescription = HashMap<String, RuleOutcome>;
 
+/// Trait for summarizing whether the outcome of culture
+/// checking was a total success for any of
+/// the various levels of outcome aggregation
+pub trait IsSuccess {
+    /// Convenience function to answer the simple question "is everything all
+    /// right?" while providing no answer at all to the useful question
+    /// "why or why not?"
+    fn is_success(&self) -> bool;
+
+    /// Panic if `is_success()` returns false for this instance
+    fn assert_success(&self) {
+        assert!(self.is_success());
+    }
+}
+
+impl IsSuccess for RuleOutcome {
+    fn is_success(&self) -> bool {
+        if let RuleOutcome::Success = *self {
+            true
+        } else {
+            false
+        }
+    }
+}
+
+impl IsSuccess for OutcomesByDescription {
+    fn is_success(&self) -> bool {
+        OutcomeStats::from(self).is_success()
+    }
+}
+
+impl IsSuccess for OutcomeStats {
+    fn is_success(&self) -> bool {
+        RuleOutcome::from(self) == RuleOutcome::Success
+    }
+}
+
 impl<T> From<T> for OutcomeStats
 where
     T: Borrow<OutcomesByDescription>,
@@ -307,7 +344,7 @@ where
     }
 }
 
-fn print_rule_evaluation<P: AsRef<Path>, W: Write, M: Borrow<Option<Metadata>>>(
+fn print_rule_evaluation<P: AsRef<Path>, W: Write, M: Borrow<Option<CargoMetadata>>>(
     rule: &Rule,
     cargo_manifest_file_path: P,
     verbose: bool,
@@ -360,15 +397,6 @@ pub struct OutcomeStats {
     pub fail_count: usize,
     /// The number of `RuleOutcome::Undetermined` instances observed
     pub undetermined_count: usize,
-}
-
-impl OutcomeStats {
-    /// Convenience function to answer the simple question "is everything all
-    /// right?" while providing no answer at all to the useful question
-    /// "why or why not?"
-    pub fn is_success(&self) -> bool {
-        RuleOutcome::from(self) == RuleOutcome::Success
-    }
 }
 
 impl<'a> From<&'a OutcomeStats> for RuleOutcome {
@@ -443,7 +471,13 @@ mod tests {
             self.description.as_ref()
         }
 
-        fn evaluate(&self, _: &Path, _: bool, _: &Option<Metadata>, _: &mut Write) -> RuleOutcome {
+        fn evaluate(
+            &self,
+            _: &Path,
+            _: bool,
+            _: &Option<CargoMetadata>,
+            _: &mut Write,
+        ) -> RuleOutcome {
             self.outcome.clone()
         }
     }
@@ -467,5 +501,45 @@ mod tests {
                                                .as_slice()
                                            ).expect("Expect no trouble with eval").into();
         }
+    }
+
+    #[allow(dead_code)]
+    #[derive(Clone, Debug, Default, PartialEq)]
+    struct IsProjectAtALuckyTime;
+
+    #[allow(dead_code)]
+    impl Rule for IsProjectAtALuckyTime {
+        fn description(&self) -> &str {
+            "Should be lucky enough to only be tested at specific times."
+        }
+
+        fn evaluate(
+            &self,
+            _cargo_manifest_path: &Path,
+            _verbose: bool,
+            _metadata: &Option<CargoMetadata>,
+            _print_output: &mut Write,
+        ) -> RuleOutcome {
+            use std::time::{SystemTime, UNIX_EPOCH};
+            let since_the_epoch = match SystemTime::now().duration_since(UNIX_EPOCH) {
+                Ok(t) => t,
+                Err(_) => return RuleOutcome::Undetermined,
+            };
+            if since_the_epoch.as_secs() % 2 == 0 {
+                RuleOutcome::Success
+            } else {
+                RuleOutcome::Failure
+            }
+        }
+    }
+
+    #[test]
+    fn sanity_check_a_silly_rule_for_the_readme() {
+        let _ = IsProjectAtALuckyTime::default().evaluate(
+            &PathBuf::from("Cargo.toml"),
+            true,
+            &None,
+            &mut Vec::new(),
+        );
     }
 }

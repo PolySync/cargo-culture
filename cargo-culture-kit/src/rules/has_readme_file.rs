@@ -17,7 +17,7 @@ pub struct HasReadmeFile;
 
 lazy_static! {
     static ref HAS_README_FILE: Regex =
-        Regex::new(r"^README").expect("Failed to create HasReadmeFile regex.");
+        Regex::new(r"^README\.?.*").expect("Failed to create HasReadmeFile regex.");
 }
 
 impl Rule for HasReadmeFile {
@@ -47,7 +47,7 @@ mod tests {
     use tempfile::tempdir;
 
     #[test]
-    fn happy_path() {
+    fn has_readme_happy_path() {
         let dir = tempdir().expect("Failed to make a temp dir");
         let file_path = dir.path().join("README.md");
         let mut file = File::create(file_path).expect("Could not make target file");

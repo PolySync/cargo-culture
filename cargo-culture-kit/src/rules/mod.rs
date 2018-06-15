@@ -79,10 +79,10 @@ pub fn default_rules() -> Vec<Box<Rule>> {
         Box::new(HasLicenseFile::default()),
         Box::new(HasReadmeFile::default()),
         Box::new(HasRustfmtFile::default()),
-        Box::new(BuildsCleanlyWithoutWarningsOrErrors::default()),
         Box::new(HasContinuousIntegrationFile::default()),
-        Box::new(UsesPropertyBasedTestLibrary::default()),
+        Box::new(BuildsCleanlyWithoutWarningsOrErrors::default()),
         Box::new(PassesMultipleTests::default()),
+        Box::new(UsesPropertyBasedTestLibrary::default()),
     ]
 }
 
