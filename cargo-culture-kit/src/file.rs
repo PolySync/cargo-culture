@@ -99,7 +99,8 @@ mod tests {
     use tempfile::TempDir;
 
     // TODO - some more direct tests of the search functions,
-    // currently mostly tested indirectly through the
+    // currently tested indirectly through the rules
+    // that use them
 
     #[test]
     fn file_present_follows_file_lifecycle() {
