@@ -5,7 +5,7 @@
 Automated opinionated checks for Rust project compliance
 with useful conventions and intention towards excellence.
 
-This tool simulates having an experienced Rustacean engineer do
+This tool simulates having an experienced Rustacean do
 a quick sanity-check review of your project, available with
 the convenience of a `cargo` subcommand, `cargo culture`.
 
@@ -140,7 +140,7 @@ cargo culture
 
 ## Tests
 
-The `cargo-culture` projects tests are managed through the standard
+This project's tests are managed through the standard
 cargo-integrated Rust test framework, with additional enhancement
 through the [proptest](https://github.com/AltSysrq/proptest) property based testing library.
 

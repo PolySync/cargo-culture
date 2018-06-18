@@ -41,7 +41,8 @@ impl ExitCode for OutcomesByDescription {
 impl ExitCode for CheckError {
     fn exit_code(&self) -> i32 {
         match *self {
-            CheckError::PrintOutputFailure(_) => 10,
+            CheckError::PrintOutputFailure { .. } => 11,
+            _ => 10
         }
     }
 }
@@ -49,8 +50,9 @@ impl ExitCode for CheckError {
 impl ExitCode for FilterError {
     fn exit_code(&self) -> i32 {
         match *self {
-            FilterError::RuleChecklistReadError(_) => 20,
-            FilterError::RequestedRuleNotFound { .. } => 21,
+            FilterError::RuleChecklistReadError(_) => 21,
+            FilterError::RequestedRuleNotFound { .. } => 22,
+            _ => 20
         }
     }
 }

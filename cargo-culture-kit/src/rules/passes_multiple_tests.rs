@@ -70,14 +70,11 @@ impl Rule for PassesMultipleTests {
                 if let Ok(s) = from_utf8(&test_output.stdout) {
                     let mut total_passed = 0;
                     for num_passed_capture in TEST_RESULT_NUM_PASSED.captures_iter(s) {
-                        match num_passed_capture
+                        if let Some(Ok(num_passed)) = num_passed_capture
                             .name("num_passed")
                             .map(|num_passed_str| num_passed_str.as_str().parse::<usize>())
                         {
-                            Some(Ok(num_passed)) => {
                                 total_passed += num_passed;
-                            }
-                            _ => (),
                         }
                     }
                     if total_passed > 1 {

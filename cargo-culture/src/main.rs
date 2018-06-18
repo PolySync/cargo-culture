@@ -60,8 +60,8 @@ fn check_culture_cli() -> Result<OutcomesByDescription, Error> {
     match culture_checklist_file_path {
         Some(ref f) if f.is_file() => check_culture_from_checklist(&manifest_path, verbose, f),
         Some(f) => Err(FilterError::RuleChecklistReadError(format!(
-            "Could not find requested rules checklist file {:?}",
-            f
+            "Could not find requested rules checklist file, {}",
+            f.display()
         )).into()),
         None => match find_extant_culture_file(&PathBuf::from(DEFAULT_CULTURE_CHECKLIST_FILE_NAME))
         {

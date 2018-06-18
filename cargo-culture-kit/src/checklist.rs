@@ -32,6 +32,13 @@ pub enum FilterError {
         /// found.
         rule_description: String,
     },
+    /// Destructuring should not be exhaustive.
+    ///
+    /// This enum may grow additional variants, so this hidden variant
+    /// ensures users do not rely on exhaustive matching.
+    #[doc(hidden)]
+    #[fail(display = "A hidden variant to increase expansion flexibility")]
+    __Nonexhaustive,
 }
 
 /// If the supplied `initial_culture_file` path is an extant file, just return
@@ -79,10 +86,10 @@ pub fn filter_to_requested_rules_from_checklist_file<'path, 'rules>(
 ) -> Result<Vec<&'rules Rule>, FilterError> {
     let f = match File::open(culture_checklist_file_path) {
         Ok(f) => f,
-        Err(e) => {
+        Err(_) => {
             return Err(FilterError::RuleChecklistReadError(format!(
-                "Difficulty opening culture checklist file. {:?}",
-                e
+                "Could not open the culture checklist file, {}",
+                culture_checklist_file_path.display()
             )))
         }
     };
@@ -92,10 +99,10 @@ pub fn filter_to_requested_rules_from_checklist_file<'path, 'rules>(
         match line {
             Ok(ref l) if !l.is_empty() => descriptions.push(l.to_string()),
             Ok(_) => (),
-            Err(e) => {
+            Err(_) => {
                 return Err(FilterError::RuleChecklistReadError(format!(
-                    "Difficulty reading culture checklist file. {:?}",
-                    e
+                    "Difficulty reading lines of the culture checklist file, {}",
+                    culture_checklist_file_path.display()
                 )))
             }
         }

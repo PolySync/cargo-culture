@@ -104,11 +104,21 @@ use std::path::{Path, PathBuf};
 /// interpreted as erroneous.
 #[derive(Debug, Clone, Eq, Fail, PartialEq, Hash)]
 pub enum CheckError {
-    #[fail(display = "There was an error while attempting to print content to the output writer: {}",
-           _0)]
+    #[fail(display = "There was an error while attempting to print {} to the output writer.",
+           topic)]
     /// Failure during writing human-oriented textual content to an output
     /// `Write` instance.
-    PrintOutputFailure(String),
+    PrintOutputFailure {
+        /// The sort of content that was failed to be written
+        topic: &'static str
+    },
+    /// Destructuring should not be exhaustive.
+    ///
+    /// This enum may grow additional variants, so this hidden variant
+    /// ensures users do not rely on exhaustive matching.
+    #[doc(hidden)]
+    #[fail(display = "A hidden variant to increase expansion flexibility")]
+    __Nonexhaustive,
 }
 
 /// Execute a `check_culture` run using the set of rules available from
@@ -125,9 +135,9 @@ pub enum CheckError {
 /// let cargo_manifest = PathBuf::from("../cargo-culture/Cargo.toml");
 /// let verbose = false;
 ///
-/// let outcomes = check_culture_default(cargo_manifest, verbose, &mut
-/// std::io::stdout()) .expect("Unexpected trouble checking culture rules:
-/// ");
+/// let outcomes = check_culture_default(
+///                 cargo_manifest, verbose, &mut std::io::stdout())
+///     .expect("Unexpected trouble checking culture rules:");
 ///
 /// let stats = OutcomeStats::from(outcomes);
 /// assert!(stats.is_success());
@@ -222,9 +232,9 @@ fn read_cargo_metadata<P: AsRef<Path>, W: Write>(
         Ok(m) => Ok(Some(m)),
         Err(e) => {
             if verbose && writeln!(print_output, "cargo metadata problem: {}", e).is_err() {
-                return Err(CheckError::PrintOutputFailure(
-                    "Error reporting project's `cargo metadata`".to_string(),
-                ));
+                return Err(CheckError::PrintOutputFailure {
+                    topic: "cargo metadata",
+                });
             }
             Ok(None)
         }
@@ -271,9 +281,9 @@ fn print_outcome_stats<W: Write>(
         outcome_stats.undetermined_count
     ).is_err()
     {
-        return Err(CheckError::PrintOutputFailure(
-            "Error printing culture check summary.".to_string(),
-        ));
+        return Err(CheckError::PrintOutputFailure {
+            topic: "culture check summary"
+        });
     };
     Ok(())
 }
@@ -353,16 +363,12 @@ fn print_rule_evaluation<P: AsRef<Path>, W: Write, M: Borrow<Option<CargoMetadat
 ) -> Result<RuleOutcome, CheckError> {
     if print_output
         .write_all(rule.description().as_bytes())
+        .and_then(|_| print_output.flush())
         .is_err()
     {
-        return Err(CheckError::PrintOutputFailure(
-            "Could not write rule name".to_string(),
-        ));
-    }
-    if print_output.flush().is_err() {
-        return Err(CheckError::PrintOutputFailure(
-            "Could not flush output".to_string(),
-        ));
+        return Err(CheckError::PrintOutputFailure {
+            topic: "rule description"
+        });
     }
     let outcome = rule.evaluate(
         cargo_manifest_file_path.as_ref(),
@@ -370,11 +376,10 @@ fn print_rule_evaluation<P: AsRef<Path>, W: Write, M: Borrow<Option<CargoMetadat
         metadata.borrow(),
         print_output,
     );
-    if let Err(e) = writeln!(print_output, " ... {}", summary_str(&outcome)) {
-        return Err(CheckError::PrintOutputFailure(format!(
-            "Could not write rule outcome to print_output: {:?}",
-            e
-        )));
+    if writeln!(print_output, " ... {}", summary_str(&outcome)).is_err() {
+        return Err(CheckError::PrintOutputFailure {
+            topic: "rule evaluation outcome"
+        });
     }
     Ok(outcome)
 }
