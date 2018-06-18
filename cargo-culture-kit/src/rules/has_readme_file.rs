@@ -1,11 +1,24 @@
-use super::super::file::is_file_present;
+use super::super::file::shallow_scan_project_dir_for_nonempty_file_name_match;
 use super::{Rule, RuleOutcome};
 use cargo_metadata::Metadata;
+use regex::Regex;
 use std::io::Write;
 use std::path::Path;
 
+/// Rule that asserts a good Rust project:
+/// "Should have a README.md file in the project directory."
+///
+/// # Justification
+///
+/// A README file is likely the first and last piece of documentation
+/// people may read about a project.
 #[derive(Debug, Default)]
 pub struct HasReadmeFile;
+
+lazy_static! {
+    static ref HAS_README_FILE: Regex =
+        Regex::new(r"^README\.?.*").expect("Failed to create HasReadmeFile regex.");
+}
 
 impl Rule for HasReadmeFile {
     fn description(&self) -> &'static str {
@@ -19,9 +32,10 @@ impl Rule for HasReadmeFile {
         _metadata: &Option<Metadata>,
         _print_output: &mut Write,
     ) -> RuleOutcome {
-        let mut path = cargo_manifest_file_path.to_path_buf();
-        path.pop();
-        is_file_present(&path.join("README.md")).into()
+        shallow_scan_project_dir_for_nonempty_file_name_match(
+            &HAS_README_FILE,
+            cargo_manifest_file_path,
+        )
     }
 }
 
@@ -33,7 +47,7 @@ mod tests {
     use tempfile::tempdir;
 
     #[test]
-    fn happy_path() {
+    fn has_readme_happy_path() {
         let dir = tempdir().expect("Failed to make a temp dir");
         let file_path = dir.path().join("README.md");
         let mut file = File::create(file_path).expect("Could not make target file");
@@ -80,7 +94,7 @@ mod tests {
     }
 
     #[test]
-    fn non_md_extension_fails() {
+    fn non_md_extension_acceptable() {
         let dir = tempdir().expect("Failed to make a temp dir");
         let file_path = dir.path().join("README.txt");
         let mut file = File::create(file_path).expect("Could not make target file");
@@ -91,7 +105,7 @@ mod tests {
             verbose,
             not_verbose,
         } = execute_rule_against_project_dir_all_verbosities(dir.path(), &rule);
-        assert_eq!(RuleOutcome::Failure, verbose.outcome);
-        assert_eq!(RuleOutcome::Failure, not_verbose.outcome);
+        assert_eq!(RuleOutcome::Success, verbose.outcome);
+        assert_eq!(RuleOutcome::Success, not_verbose.outcome);
     }
 }

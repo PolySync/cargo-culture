@@ -5,6 +5,13 @@ use regex::Regex;
 use std::io::Write;
 use std::path::Path;
 
+/// Rule that asserts a good Rust project:
+/// "Should have a LICENSE file in the project directory."
+///
+/// # Justification
+///
+/// A LICENSE file is an essential project component that informs
+/// potential users and developers how they may interact with the code.
 #[derive(Debug, Default)]
 pub struct HasLicenseFile;
 

@@ -5,6 +5,21 @@ use regex::Regex;
 use std::io::Write;
 use std::path::Path;
 
+/// Rule that asserts a good Rust project:
+/// "Should have a rustfmt.toml file in the project directory."
+///
+/// # Justification
+///
+/// Code style linting is a valuable tool to enhance project-wide
+/// consistency and readability for new developers.
+/// `rustfmt` is the de-facto standard style linter in the Rust
+/// community.
+///
+/// A rustfmt.toml file suggests that the project
+/// maintainers are aware of the advantages of unified formatting,
+/// and have taken the time to select the `rustfmt` rules that make
+/// sense for this project, even if the choice is simply to use the
+/// defaults.
 #[derive(Debug, Default)]
 pub struct HasRustfmtFile;
 
@@ -122,6 +137,26 @@ mod tests {
         } = execute_rule_against_project_dir_all_verbosities(dir.path(), &rule);
         assert_eq!(RuleOutcome::Failure, verbose.outcome);
         assert_eq!(RuleOutcome::Failure, not_verbose.outcome);
+    }
+
+    #[test]
+    fn has_rustfmt_nonempty_blank_content_rustfmt_file_succeeds() {
+        let dir = tempdir().expect("Failed to make a temp dir");
+        {
+            let file_path = dir.path().join("rustfmt.toml");
+            let mut f = File::create(file_path).expect("Could not make target file");
+            f.write_all(b"\n")
+                .expect("Could not write a newline to file");
+            f.flush().expect("Could not flush file");
+            f.sync_all().expect("Could not sync file");
+        }
+        let rule = HasRustfmtFile::default();
+        let VerbosityOutcomes {
+            verbose,
+            not_verbose,
+        } = execute_rule_against_project_dir_all_verbosities(dir.path(), &rule);
+        assert_eq!(RuleOutcome::Success, verbose.outcome);
+        assert_eq!(RuleOutcome::Success, not_verbose.outcome);
     }
 
     #[test]
