@@ -2,6 +2,12 @@
 name = "cargo-culture-kit"
 version = "0.1.0"
 authors = ["ZackPierce <zacharypierce@gmail.com>"]
+description = "Library for writing tools that check Rust project conventions"
+license = "MIT"
+repository = "https://github.com/PolySync/cargo-culture"
+documentation = "https://docs.rs/cargo-culture-kit"
+homepage = "https://github.com/PolySync/cargo-culture"
+categories = ["development-tools"]
 
 [features]
 default = []
