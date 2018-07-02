@@ -1,9 +1,6 @@
 use super::super::file::shallow_scan_project_dir_for_nonempty_file_name_match;
-use super::{Rule, RuleOutcome};
-use cargo_metadata::Metadata;
+use super::{Rule, RuleContext, RuleOutcome};
 use regex::Regex;
-use std::io::Write;
-use std::path::Path;
 
 /// Rule that asserts a good Rust project:
 /// "Should have a README.md file in the project directory."
@@ -25,16 +22,10 @@ impl Rule for HasReadmeFile {
         "Should have a README.md file in the project directory."
     }
 
-    fn evaluate(
-        &self,
-        cargo_manifest_file_path: &Path,
-        _verbose: bool,
-        _metadata: &Option<Metadata>,
-        _print_output: &mut Write,
-    ) -> RuleOutcome {
+    fn evaluate(&self, context: RuleContext) -> RuleOutcome {
         shallow_scan_project_dir_for_nonempty_file_name_match(
             &HAS_README_FILE,
-            cargo_manifest_file_path,
+            context.cargo_manifest_file_path,
         )
     }
 }
@@ -44,6 +35,7 @@ mod tests {
     use super::super::test_support::*;
     use super::*;
     use std::fs::File;
+    use std::io::Write;
     use tempfile::tempdir;
 
     #[test]

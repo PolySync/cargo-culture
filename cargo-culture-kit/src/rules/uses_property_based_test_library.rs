@@ -1,8 +1,6 @@
-use super::{Rule, RuleOutcome};
-use cargo_metadata::{DependencyKind, Metadata};
+use super::{Rule, RuleContext, RuleOutcome};
+use cargo_metadata::DependencyKind;
 use regex::Regex;
-use std::io::Write;
-use std::path::Path;
 
 /// Rule that asserts a good Rust project:
 /// "Should be making an effort to use property based tests."
@@ -50,14 +48,8 @@ impl Rule for UsesPropertyBasedTestLibrary {
         "Should be making an effort to use property based tests."
     }
 
-    fn evaluate(
-        &self,
-        _: &Path,
-        _: bool,
-        metadata: &Option<Metadata>,
-        _: &mut Write,
-    ) -> RuleOutcome {
-        match *metadata {
+    fn evaluate(&self, context: RuleContext) -> RuleOutcome {
+        match *context.metadata {
             None => RuleOutcome::Undetermined,
             Some(ref m) => {
                 if m.packages.is_empty() {
@@ -84,6 +76,8 @@ mod tests {
     use super::super::test_support::*;
     use super::*;
     use std::fs::{create_dir_all, File};
+    use std::io::Write;
+    use std::path::Path;
     use tempfile::tempdir;
 
     #[test]

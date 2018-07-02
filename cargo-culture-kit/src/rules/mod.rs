@@ -56,18 +56,28 @@ pub trait Rule: Debug {
 
     /// Does the Rust project found at `cargo_manifest_path` uphold this
     /// `Rule`, as summarized in the `description`?
-    ///
-    ///
-    /// Pre-parsed cargo `metadata` may be available, and supplemental
-    /// human-readable `verbose` content may be written to the
-    /// `print_output`.
-    fn evaluate(
-        &self,
-        cargo_manifest_file_path: &Path,
-        verbose: bool,
-        metadata: &Option<Metadata>,
-        print_output: &mut Write,
-    ) -> RuleOutcome;
+    fn evaluate(&self, context: RuleContext) -> RuleOutcome;
+}
+
+/// Parameter struct for the `Rule::evaluate` method.
+/// Should provide the minimum information necessary for
+/// project-level quality and completeness checks to be run.
+pub struct RuleContext<'a> {
+    /// The path of the Cargo.toml project file for the Rust
+    /// project currently under evaluation.
+    pub cargo_manifest_file_path: &'a Path,
+    /// When true, `Rule` implementations should supply additional
+    /// human-reader-oriented content by writing to `print_output`
+    pub verbose: bool,
+    /// Pre-parsed cargo metadata for the current project under evaluation.
+    /// Ought to be `None` only when the cargo metadata retrieval or parsing
+    /// fails.
+    pub metadata: &'a Option<Metadata>,
+    /// Output `Write` implementation intended for supplying optional
+    /// textual content visible to the end-user.  `Rule` implementations
+    /// may make use of this as they wish, the default convention is to only
+    /// write extra content when `verbose == true`
+    pub print_output: &'a mut Write,
 }
 
 /// Constructs new instances of the default `Rule`s
@@ -103,7 +113,7 @@ mod tests {
 
 #[cfg(test)]
 pub(crate) mod test_support {
-    use super::{Rule, RuleOutcome};
+    use super::{Rule, RuleContext, RuleOutcome};
     use cargo_metadata;
     use std::path::Path;
 
@@ -140,12 +150,12 @@ pub(crate) mod test_support {
             })
             .ok();
         let mut print_output: Vec<u8> = Vec::new();
-        let outcome = rule.evaluate(
-            &cargo_manifest_file_path,
+        let outcome = rule.evaluate(RuleContext {
+            cargo_manifest_file_path: &cargo_manifest_file_path,
             verbose,
-            &metadata,
-            &mut print_output,
-        );
+            metadata: &metadata,
+            print_output: &mut print_output,
+        });
         OutcomeCapture {
             outcome,
             print_output,

@@ -42,7 +42,7 @@ impl ExitCode for CheckError {
     fn exit_code(&self) -> i32 {
         match *self {
             CheckError::PrintOutputFailure { .. } => 11,
-            _ => 10
+            _ => 10,
         }
     }
 }
@@ -52,7 +52,7 @@ impl ExitCode for FilterError {
         match *self {
             FilterError::RuleChecklistReadError(_) => 21,
             FilterError::RequestedRuleNotFound { .. } => 22,
-            _ => 20
+            _ => 20,
         }
     }
 }

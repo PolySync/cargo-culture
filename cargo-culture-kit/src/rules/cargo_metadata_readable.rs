@@ -1,7 +1,4 @@
-use super::{Rule, RuleOutcome};
-use cargo_metadata::Metadata;
-use std::io::Write;
-use std::path::Path;
+use super::{Rule, RuleContext, RuleOutcome};
 
 /// Rule that asserts a good Rust project:
 /// "Should have a well-formed Cargo.toml file readable by `cargo metadata`"
@@ -23,14 +20,8 @@ impl Rule for CargoMetadataReadable {
     /// and parsed as part of `check_culture` and then handed off to the
     /// `Rule`s being checked, `evaluate` will declare a success if the
     /// `metadata` parameter is `Some`.
-    fn evaluate(
-        &self,
-        _: &Path,
-        _: bool,
-        metadata: &Option<Metadata>,
-        _: &mut Write,
-    ) -> RuleOutcome {
-        match *metadata {
+    fn evaluate(&self, context: RuleContext) -> RuleOutcome {
+        match *context.metadata {
             None => RuleOutcome::Failure,
             Some(_) => RuleOutcome::Success,
         }
@@ -41,6 +32,8 @@ mod tests {
     use super::super::test_support::*;
     use super::*;
     use std::fs::{create_dir_all, File};
+    use std::io::Write;
+    use std::path::Path;
     use tempfile::tempdir;
 
     #[test]

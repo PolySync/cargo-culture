@@ -1,4 +1,4 @@
-use super::{Rule, RuleOutcome};
+use super::{Rule, RuleContext, RuleOutcome};
 use cargo_metadata::Metadata;
 use regex::Regex;
 use std::io::Write;
@@ -34,14 +34,14 @@ impl Rule for BuildsCleanlyWithoutWarningsOrErrors {
         "Should `cargo clean` and `cargo build` without any warnings or errors."
     }
 
-    fn evaluate(
-        &self,
-        cargo_manifest_file_path: &Path,
-        verbose: bool,
-        metadata: &Option<Metadata>,
-        print_output: &mut Write,
-    ) -> RuleOutcome {
+    fn evaluate(&self, context: RuleContext) -> RuleOutcome {
         let cargo = get_cargo_command();
+        let RuleContext {
+            cargo_manifest_file_path,
+            verbose,
+            metadata,
+            print_output,
+        } = context;
         let packages_cleaned = clean_packages(
             &cargo,
             cargo_manifest_file_path,
@@ -56,7 +56,7 @@ impl Rule for BuildsCleanlyWithoutWarningsOrErrors {
         build_cmd.arg("build");
         build_cmd
             .arg("--manifest-path")
-            .arg(cargo_manifest_file_path);
+            .arg(context.cargo_manifest_file_path);
         build_cmd.arg("--message-format=json");
         let command_str = format!("{:?}", build_cmd);
         let build_output = match build_cmd.output() {
@@ -66,7 +66,7 @@ impl Rule for BuildsCleanlyWithoutWarningsOrErrors {
             }
         };
         if !build_output.status.success() {
-            if verbose {
+            if context.verbose {
                 let _ = writeln!(print_output, "Build command `{}` failed", command_str);
                 if let Ok(s) = String::from_utf8(build_output.stdout) {
                     let _ = writeln!(print_output, "`{}` StdOut:\n{}\n\n", command_str, s);
@@ -80,7 +80,7 @@ impl Rule for BuildsCleanlyWithoutWarningsOrErrors {
         let stdout = match from_utf8(&build_output.stdout) {
             Ok(stdout) => stdout,
             Err(e) => {
-                if verbose {
+                if context.verbose {
                     let _ = writeln!(
                         print_output,
                         "Reading stdout for command `{}` failed : {}",
@@ -92,7 +92,7 @@ impl Rule for BuildsCleanlyWithoutWarningsOrErrors {
         };
 
         if WARNING_JSON.is_match(stdout) {
-            if verbose {
+            if context.verbose {
                 let _ = writeln!(
                     print_output,
                     "Found warnings in the cargo build command output:\n{}\n\n",
