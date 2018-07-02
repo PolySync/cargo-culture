@@ -82,14 +82,17 @@ pub mod checklist;
 pub mod exit_code;
 pub mod rules;
 
-pub use checklist::{filter_to_requested_rules_by_description,
-                    filter_to_requested_rules_from_checklist_file, find_extant_culture_file,
-                    FilterError, DEFAULT_CULTURE_CHECKLIST_FILE_NAME};
+pub use checklist::{
+    filter_to_requested_rules_by_description, filter_to_requested_rules_from_checklist_file,
+    find_extant_culture_file, FilterError, DEFAULT_CULTURE_CHECKLIST_FILE_NAME,
+};
 pub use exit_code::ExitCode;
-pub use rules::{default_rules, BuildsCleanlyWithoutWarningsOrErrors, CargoMetadataReadable,
-                HasContinuousIntegrationFile, HasContributingFile, HasLicenseFile, HasReadmeFile,
-                HasRustfmtFile, PassesMultipleTests, Rule, RuleContext, RuleOutcome,
-                UsesPropertyBasedTestLibrary};
+pub use rules::{
+    default_rules, BuildsCleanlyWithoutWarningsOrErrors, CargoMetadataReadable,
+    HasContinuousIntegrationFile, HasContributingFile, HasLicenseFile, HasReadmeFile,
+    HasRustfmtFile, PassesMultipleTests, Rule, RuleContext, RuleOutcome,
+    UsesPropertyBasedTestLibrary,
+};
 
 pub use cargo_metadata::Metadata as CargoMetadata;
 use colored::*;
@@ -104,8 +107,9 @@ use std::path::{Path, PathBuf};
 /// interpreted as erroneous.
 #[derive(Debug, Clone, Eq, Fail, PartialEq, Hash)]
 pub enum CheckError {
-    #[fail(display = "There was an error while attempting to print {} to the output writer.",
-           topic)]
+    #[fail(
+        display = "There was an error while attempting to print {} to the output writer.", topic
+    )]
     /// Failure during writing human-oriented textual content to an output
     /// `Write` instance.
     PrintOutputFailure {

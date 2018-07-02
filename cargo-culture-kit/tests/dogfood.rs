@@ -55,7 +55,7 @@ fn assert_checks_default_culture(cargo_manifest_file_path: &Path) {
             let stats = outcome.into();
             assert_eq!(
                 OutcomeStats {
-                    success_count: 9,
+                    success_count: 10,
                     fail_count: 0,
                     undetermined_count: 0,
                 },

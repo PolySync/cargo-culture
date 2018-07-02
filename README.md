@@ -107,8 +107,9 @@ cargo culture
   Should have a file suggesting the use of a continuous integration system. ... FAILED
   Should `cargo clean` and `cargo build` without any warnings or errors. ... ok
   Should have multiple tests which pass. ... ok
+  Should be under source control. ... ok
   Should be making an effort to use property based tests. ... ok
-  culture result: FAILED. 6 passed. 3 failed. 0 undetermined.
+  culture result: FAILED. 7 passed. 3 failed. 0 undetermined.
   ```
 * You can execute `cargo culture` checks against projects not in the
   current working directory with the `--manifest-path` option.
