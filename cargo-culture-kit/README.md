@@ -82,7 +82,7 @@ assert_eq!(stats.undetermined_count, 0);
 
 * An example of implementing your own `Rule`:
   ```rust
-  use cargo_culture_kit::{CargoMetadata, Rule, RuleOutcome}
+  use cargo_culture_kit::{CargoMetadata, Rule, RuleContext, RuleOutcome}
   #[derive(Clone, Debug, PartialEq)]
   struct IsProjectAtALuckyTime;
 
@@ -92,10 +92,7 @@ assert_eq!(stats.undetermined_count, 0);
       }
 
       fn evaluate(&self,
-          _cargo_manifest_path: &Path,
-          _verbose: bool,
-          _metadata: &Option<CargoMetadata>,
-          _print_output: &mut Write
+          _context: RuleContext,
       ) -> RuleOutcome {
           use std::time::{SystemTime, UNIX_EPOCH};
           let since_the_epoch = match SystemTime::now().duration_since(UNIX_EPOCH) {

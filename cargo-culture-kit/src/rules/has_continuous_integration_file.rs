@@ -1,9 +1,6 @@
 use super::super::file::search_manifest_and_workspace_dir_for_nonempty_file_name_match;
-use super::{Rule, RuleOutcome};
-use cargo_metadata::Metadata;
+use super::{Rule, RuleContext, RuleOutcome};
 use regex::Regex;
-use std::io::Write;
-use std::path::Path;
 
 /// Rule that asserts a good Rust project:
 /// "Should have a file suggesting the use of a continuous integration system."
@@ -29,17 +26,11 @@ impl Rule for HasContinuousIntegrationFile {
         "Should have a file suggesting the use of a continuous integration system."
     }
 
-    fn evaluate(
-        &self,
-        cargo_manifest_file_path: &Path,
-        _verbose: bool,
-        metadata: &Option<Metadata>,
-        _: &mut Write,
-    ) -> RuleOutcome {
+    fn evaluate(&self, context: RuleContext) -> RuleOutcome {
         search_manifest_and_workspace_dir_for_nonempty_file_name_match(
             &HAS_CONTINUOUS_INTEGRATION_FILE,
-            cargo_manifest_file_path,
-            metadata,
+            context.cargo_manifest_file_path,
+            context.metadata,
         )
     }
 }
@@ -48,6 +39,7 @@ mod tests {
     use super::super::test_support::*;
     use super::*;
     use std::fs::File;
+    use std::io::Write;
     use tempfile::tempdir;
 
     fn manual_allowed_set() -> Vec<&'static str> {

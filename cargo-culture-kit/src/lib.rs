@@ -88,7 +88,7 @@ pub use checklist::{filter_to_requested_rules_by_description,
 pub use exit_code::ExitCode;
 pub use rules::{default_rules, BuildsCleanlyWithoutWarningsOrErrors, CargoMetadataReadable,
                 HasContinuousIntegrationFile, HasContributingFile, HasLicenseFile, HasReadmeFile,
-                HasRustfmtFile, PassesMultipleTests, Rule, RuleOutcome,
+                HasRustfmtFile, PassesMultipleTests, Rule, RuleContext, RuleOutcome,
                 UsesPropertyBasedTestLibrary};
 
 pub use cargo_metadata::Metadata as CargoMetadata;
@@ -110,7 +110,7 @@ pub enum CheckError {
     /// `Write` instance.
     PrintOutputFailure {
         /// The sort of content that was failed to be written
-        topic: &'static str
+        topic: &'static str,
     },
     /// Destructuring should not be exhaustive.
     ///
@@ -282,7 +282,7 @@ fn print_outcome_stats<W: Write>(
     ).is_err()
     {
         return Err(CheckError::PrintOutputFailure {
-            topic: "culture check summary"
+            topic: "culture check summary",
         });
     };
     Ok(())
@@ -367,18 +367,18 @@ fn print_rule_evaluation<P: AsRef<Path>, W: Write, M: Borrow<Option<CargoMetadat
         .is_err()
     {
         return Err(CheckError::PrintOutputFailure {
-            topic: "rule description"
+            topic: "rule description",
         });
     }
-    let outcome = rule.evaluate(
-        cargo_manifest_file_path.as_ref(),
+    let outcome = rule.evaluate(RuleContext {
+        cargo_manifest_file_path: cargo_manifest_file_path.as_ref(),
         verbose,
-        metadata.borrow(),
+        metadata: metadata.borrow(),
         print_output,
-    );
+    });
     if writeln!(print_output, " ... {}", summary_str(&outcome)).is_err() {
         return Err(CheckError::PrintOutputFailure {
-            topic: "rule evaluation outcome"
+            topic: "rule evaluation outcome",
         });
     }
     Ok(outcome)
@@ -476,13 +476,7 @@ mod tests {
             self.description.as_ref()
         }
 
-        fn evaluate(
-            &self,
-            _: &Path,
-            _: bool,
-            _: &Option<CargoMetadata>,
-            _: &mut Write,
-        ) -> RuleOutcome {
+        fn evaluate(&self, _context: RuleContext) -> RuleOutcome {
             self.outcome.clone()
         }
     }
@@ -518,13 +512,7 @@ mod tests {
             "Should be lucky enough to only be tested at specific times."
         }
 
-        fn evaluate(
-            &self,
-            _cargo_manifest_path: &Path,
-            _verbose: bool,
-            _metadata: &Option<CargoMetadata>,
-            _print_output: &mut Write,
-        ) -> RuleOutcome {
+        fn evaluate(&self, _context: RuleContext) -> RuleOutcome {
             use std::time::{SystemTime, UNIX_EPOCH};
             let since_the_epoch = match SystemTime::now().duration_since(UNIX_EPOCH) {
                 Ok(t) => t,
@@ -540,11 +528,12 @@ mod tests {
 
     #[test]
     fn sanity_check_a_silly_rule_for_the_readme() {
-        let _ = IsProjectAtALuckyTime::default().evaluate(
-            &PathBuf::from("Cargo.toml"),
-            true,
-            &None,
-            &mut Vec::new(),
-        );
+        let context = RuleContext {
+            cargo_manifest_file_path: &PathBuf::from("Cargo.toml"),
+            verbose: true,
+            metadata: &None,
+            print_output: &mut Vec::new(),
+        };
+        let _ = IsProjectAtALuckyTime::default().evaluate(context);
     }
 }

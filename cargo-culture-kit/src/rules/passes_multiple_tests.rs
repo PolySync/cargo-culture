@@ -1,8 +1,5 @@
-use super::{Rule, RuleOutcome};
-use cargo_metadata::Metadata;
+use super::{Rule, RuleContext, RuleOutcome};
 use regex::Regex;
-use std::io::Write;
-use std::path::Path;
 use std::process::Command;
 use std::str::from_utf8;
 
@@ -39,13 +36,7 @@ impl Rule for PassesMultipleTests {
         "Should have multiple tests which pass."
     }
 
-    fn evaluate(
-        &self,
-        cargo_manifest_file_path: &Path,
-        verbose: bool,
-        _: &Option<Metadata>,
-        print_output: &mut Write,
-    ) -> RuleOutcome {
+    fn evaluate(&self, context: RuleContext) -> RuleOutcome {
         match ::std::env::var(CARGO_CULTURE_TEST_RECURSION_BUSTER) {
             Ok(_) => RuleOutcome::Success, // Don't recurse indefinitely
             Err(_) => {
@@ -53,7 +44,7 @@ impl Rule for PassesMultipleTests {
                 test_cmd
                     .arg("test")
                     .arg("--manifest-path")
-                    .arg(cargo_manifest_file_path)
+                    .arg(context.cargo_manifest_file_path)
                     .arg("--message-format")
                     .arg("json")
                     .arg("--verbose")
@@ -74,7 +65,7 @@ impl Rule for PassesMultipleTests {
                             .name("num_passed")
                             .map(|num_passed_str| num_passed_str.as_str().parse::<usize>())
                         {
-                                total_passed += num_passed;
+                            total_passed += num_passed;
                         }
                     }
                     if total_passed > 1 {
@@ -83,9 +74,9 @@ impl Rule for PassesMultipleTests {
                         RuleOutcome::Failure
                     }
                 } else {
-                    if verbose {
+                    if context.verbose {
                         let _ = writeln!(
-                            print_output,
+                            context.print_output,
                             "Failed to interpret `cargo test` output as utf8 for parsing."
                         );
                     }
@@ -106,6 +97,8 @@ mod tests {
     use super::*;
     use std::env::var;
     use std::fs::{create_dir_all, File};
+    use std::io::Write;
+    use std::path::Path;
     use tempfile::tempdir;
 
     #[test]

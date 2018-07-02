@@ -1,4 +1,4 @@
-use super::{Rule, RuleOutcome};
+use super::{Rule, RuleContext, RuleOutcome};
 use cargo_metadata::Metadata;
 use regex::Regex;
 use std::io::Write;
@@ -34,14 +34,14 @@ impl Rule for BuildsCleanlyWithoutWarningsOrErrors {
         "Should `cargo clean` and `cargo build` without any warnings or errors."
     }
 
-    fn evaluate(
-        &self,
-        cargo_manifest_file_path: &Path,
-        verbose: bool,
-        metadata: &Option<Metadata>,
-        print_output: &mut Write,
-    ) -> RuleOutcome {
+    fn evaluate(&self, context: RuleContext) -> RuleOutcome {
         let cargo = get_cargo_command();
+        let RuleContext {
+            cargo_manifest_file_path,
+            verbose,
+            metadata,
+            print_output,
+        } = context;
         let packages_cleaned = clean_packages(
             &cargo,
             cargo_manifest_file_path,
