@@ -1,3 +1,26 @@
+//! cargo-culture is a tool that does project-level
+//! quality checks for Rust projects
+//!
+//! # Examples
+//!
+//! From within a Rust project directory, using the default checks:
+//!
+//! ```bash
+//! cargo culture
+//!
+//! Should have a well-formed Cargo.toml file readable by `cargo metadata` ... ok
+//! Should have a CONTRIBUTING file in the project directory. ... FAILED
+//! Should have a LICENSE file in the project directory. ... ok
+//! Should have a README.md file in the project directory. ... ok
+//! Should have a rustfmt.toml file in the project directory. ... FAILED
+//! Should have a file suggesting the use of a continuous integration system. ... FAILED
+//! Should `cargo clean` and `cargo build` without any warnings or errors. ... ok
+//! Should have multiple tests which pass. ... ok
+//! Should be making an effort to use property based tests. ... ok
+//!
+//! culture result: FAILED. 6 passed. 3 failed. 0 undetermined.
+//!
+//! ```
 extern crate cargo_culture_kit;
 extern crate failure;
 
@@ -20,9 +43,11 @@ use std::io::stdout;
 use std::path::{Path, PathBuf};
 use structopt::StructOpt;
 
+/// Parsing and representation of `cargo-culture` command line arguments.
 #[derive(StructOpt, Debug, PartialEq)]
 #[structopt(bin_name = "cargo")]
 pub enum Opt {
+    /// culture subcommand arguments
     #[structopt(name = "culture")]
     Culture {
         /// The location of the Cargo manifest for the project to check
@@ -30,7 +55,13 @@ pub enum Opt {
         manifest_path: PathBuf,
 
         /// The file location of the line-separated list of Rule descriptions
-        /// to check for this project
+        /// to check for this project.
+        ///
+        /// If absent, look for a culture checklist file named `".culture"` in the
+        /// current and ancestor directories of the project specified by `manifest_path`.
+        ///
+        /// If no explicit file is specified and no implicit `".culture"` file is found,
+        /// use the default rules.
         #[structopt(long = "culture-checklist-path", parse(from_os_str))]
         culture_checklist_file_path: Option<PathBuf>,
 
@@ -42,7 +73,7 @@ pub enum Opt {
 
 fn main() {
     std::process::exit(
-        check_culture_cli()
+        check_culture_cli(Opt::from_args())
             .map_err(|e| {
                 println!("{}", e);
                 e
@@ -51,12 +82,14 @@ fn main() {
     )
 }
 
-fn check_culture_cli() -> Result<OutcomesByDescription, Error> {
+/// Run `cargo_culture_kit::check_culture` with target project, verbosity,
+/// and selected rules based on command-line options. Prints to `std::io::stdout`.
+pub fn check_culture_cli(cli_options: Opt) -> Result<OutcomesByDescription, Error> {
     let Opt::Culture {
         manifest_path,
         culture_checklist_file_path,
         verbose,
-    } = Opt::from_args();
+    } = cli_options;
     match culture_checklist_file_path {
         Some(ref f) if f.is_file() => check_culture_from_checklist(&manifest_path, verbose, f),
         Some(f) => Err(FilterError::RuleChecklistReadError(format!(
