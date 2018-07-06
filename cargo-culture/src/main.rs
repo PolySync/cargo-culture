@@ -8,17 +8,21 @@
 //! ```bash
 //! cargo culture
 //!
-//! Should have a well-formed Cargo.toml file readable by `cargo metadata` ... ok
+//! Should have a well-formed Cargo.toml file readable by `cargo metadata` ...
+//!  ok
 //! Should have a CONTRIBUTING file in the project directory. ... FAILED
 //! Should have a LICENSE file in the project directory. ... ok
 //! Should have a README.md file in the project directory. ... ok
 //! Should have a rustfmt.toml file in the project directory. ... FAILED
-//! Should have a file suggesting the use of a continuous integration system. ... FAILED
-//! Should `cargo clean` and `cargo build` without any warnings or errors. ... ok
+//! Should have a file suggesting the use of a continuous integration system.
+//! ... FAILED
+//! Should `cargo clean` and `cargo build` without any warnings or
+//!  errors. ... ok
 //! Should have multiple tests which pass. ... ok
+//! Should be under source control. ... ok
 //! Should be making an effort to use property based tests. ... ok
 //!
-//! culture result: FAILED. 6 passed. 3 failed. 0 undetermined.
+//! culture result: FAILED. 7 passed. 3 failed. 0 undetermined.
 //!
 //! ```
 extern crate cargo_culture_kit;
@@ -34,10 +38,11 @@ extern crate proptest;
 #[cfg(test)]
 extern crate tempfile;
 
-use cargo_culture_kit::{check_culture, check_culture_default, default_rules,
-                        filter_to_requested_rules_from_checklist_file, find_extant_culture_file,
-                        ExitCode, FilterError, OutcomesByDescription, Rule,
-                        DEFAULT_CULTURE_CHECKLIST_FILE_NAME};
+use cargo_culture_kit::{
+    check_culture, check_culture_default, default_rules,
+    filter_to_requested_rules_from_checklist_file, find_extant_culture_file, ExitCode, FilterError,
+    OutcomesByDescription, Rule, DEFAULT_CULTURE_CHECKLIST_FILE_NAME,
+};
 use failure::Error;
 use std::io::stdout;
 use std::path::{Path, PathBuf};
@@ -57,11 +62,12 @@ pub enum Opt {
         /// The file location of the line-separated list of Rule descriptions
         /// to check for this project.
         ///
-        /// If absent, look for a culture checklist file named `".culture"` in the
-        /// current and ancestor directories of the project specified by `manifest_path`.
+        /// If absent, look for a culture checklist file named `".culture"` in
+        /// the current and ancestor directories of the project
+        /// specified by `manifest_path`.
         ///
-        /// If no explicit file is specified and no implicit `".culture"` file is found,
-        /// use the default rules.
+        /// If no explicit file is specified and no implicit `".culture"` file
+        /// is found, use the default rules.
         #[structopt(long = "culture-checklist-path", parse(from_os_str))]
         culture_checklist_file_path: Option<PathBuf>,
 
@@ -83,7 +89,8 @@ fn main() {
 }
 
 /// Run `cargo_culture_kit::check_culture` with target project, verbosity,
-/// and selected rules based on command-line options. Prints to `std::io::stdout`.
+/// and selected rules based on command-line options. Prints to
+/// `std::io::stdout`.
 pub fn check_culture_cli(cli_options: Opt) -> Result<OutcomesByDescription, Error> {
     let Opt::Culture {
         manifest_path,

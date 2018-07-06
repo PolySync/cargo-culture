@@ -8,6 +8,7 @@ mod has_license_file;
 mod has_readme_file;
 mod has_rustfmt_file;
 mod passes_multiple_tests;
+mod under_source_control;
 mod uses_property_based_test_library;
 
 pub use self::builds_cleanly_without_warnings_or_errors::BuildsCleanlyWithoutWarningsOrErrors;
@@ -18,6 +19,7 @@ pub use self::has_license_file::HasLicenseFile;
 pub use self::has_readme_file::HasReadmeFile;
 pub use self::has_rustfmt_file::HasRustfmtFile;
 pub use self::passes_multiple_tests::PassesMultipleTests;
+pub use self::under_source_control::UnderSourceControl;
 pub use self::uses_property_based_test_library::UsesPropertyBasedTestLibrary;
 
 use cargo_metadata::Metadata;
@@ -92,6 +94,7 @@ pub fn default_rules() -> Vec<Box<Rule>> {
         Box::new(HasContinuousIntegrationFile::default()),
         Box::new(BuildsCleanlyWithoutWarningsOrErrors::default()),
         Box::new(PassesMultipleTests::default()),
+        Box::new(UnderSourceControl::default()),
         Box::new(UsesPropertyBasedTestLibrary::default()),
     ]
 }

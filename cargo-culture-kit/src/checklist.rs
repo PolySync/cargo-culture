@@ -16,13 +16,17 @@ pub const DEFAULT_CULTURE_CHECKLIST_FILE_NAME: &str = ".culture";
 /// of `Rule` descriptions.
 #[derive(Debug, Clone, Eq, Fail, PartialEq, Hash)]
 pub enum FilterError {
-    #[fail(display = "There was an error while attempting to read the checklist of rules to check: {}",
-           _0)]
+    #[fail(
+        display = "There was an error while attempting to read the checklist of rules to check: {}",
+        _0
+    )]
     /// Covers failures in reading a checklist file of `Rule` descriptions that
     /// could be used to specified the set of rules to evaluate.
     RuleChecklistReadError(String),
-    #[fail(display = "A described rule specified was not in the available set of Rule implementations: {}",
-           rule_description)]
+    #[fail(
+        display = "A described rule specified was not in the available set of Rule implementations: {}",
+        rule_description
+    )]
     /// An error while filtering the set of `Rule`s to run. The most common
     /// cause of this is when a checklist of `Rule` descriptions includes a
     /// description of a `Rule` that does not match any of the available
