@@ -71,19 +71,7 @@ authors = []
         let base_dir = tempdir().expect("Failed to make a temp dir");
         {
             let workspace_cargo_path = base_dir.path().join("Cargo.toml");
-            let mut workspace_cargo_file =
-                File::create(workspace_cargo_path).expect("Could not make workspace Cargo file");
-            workspace_cargo_file
-                .write_all(
-                    br##"
-[workspace]
-
-members = [
-  "kid"
-]
-        "##,
-                )
-                .expect("Could not write to workspace Cargo.toml file");
+            create_workspace_cargo_toml(workspace_cargo_path);
         }
         let subproject_dir = base_dir.path().join("kid");
         create_dir_all(&subproject_dir).expect("Could not create subproject dir");

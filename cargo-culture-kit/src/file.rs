@@ -1,6 +1,6 @@
 //! File discovery and inspection utilities for use in implementing `Rule`s
 use super::RuleOutcome;
-use cargo_metadata::Metadata;
+use cargo_metadata::Metadata as CargoMetadata;
 use regex::Regex;
 use std::convert::From;
 use std::path::{Path, PathBuf};
@@ -56,7 +56,7 @@ pub fn shallow_scan_project_dir_for_nonempty_file_name_match(
 pub fn search_manifest_and_workspace_dir_for_nonempty_file_name_match(
     regex: &Regex,
     manifest_path: &Path,
-    maybe_metadata: &Option<Metadata>,
+    maybe_metadata: &Option<CargoMetadata>,
 ) -> RuleOutcome {
     let outcome_in_given_manifest_path =
         shallow_scan_project_dir_for_nonempty_file_name_match(regex, manifest_path);
@@ -79,7 +79,7 @@ pub fn search_manifest_and_workspace_dir_for_nonempty_file_name_match(
 
 fn search_metadata_workspace_root_for_file_name_match(
     regex: &Regex,
-    metadata: &Metadata,
+    metadata: &CargoMetadata,
 ) -> RuleOutcome {
     if metadata.workspace_root.is_empty() {
         return RuleOutcome::Undetermined;
@@ -93,36 +93,119 @@ fn search_metadata_workspace_root_for_file_name_match(
 
 #[cfg(test)]
 mod tests {
+    use super::super::rules::test_support::*;
     use super::*;
-    use std::fs::File;
+    use cargo_metadata::metadata;
+    use proptest::prelude::*;
+    use std::fs::{create_dir_all, File};
     use std::io::Write;
-    use tempfile::TempDir;
+    use tempfile::tempdir;
 
-    // TODO - some more direct tests of the search functions,
-    // currently tested indirectly through the rules
-    // that use them
+    proptest! {
+        #[test]
+        fn shallow_scan_finds_arb_file(ref file_name in "[a-zA-Z0-9]+") {
+            let dir = tempdir().expect("Failed to make a temp dir");
+            let mut s = String::from("^");
+            s.push_str(file_name);
+            let r = Regex::new(&s).expect("Could not make trivial prefix regex");
+            let manifest_path = &dir.path().join("Cargo.toml");
+            assert_eq!(
+                RuleOutcome::Failure,
+                shallow_scan_project_dir_for_nonempty_file_name_match(&r, manifest_path)
+            );
+            let file_path = dir.path().join(file_name);
+            let mut f = File::create(&file_path).expect("Could not create temp file");
+            f.sync_all()
+                .expect("Could not sync temp file state initially");
+            assert_eq!(
+                RuleOutcome::Failure,
+                shallow_scan_project_dir_for_nonempty_file_name_match(&r, manifest_path)
+            );
+            f.write_all(b"Hello, world!")
+                .expect("Could not write to temp file");
+            f.sync_all()
+                .expect("Could not sync temp file state after write");
+            assert_eq!(
+                RuleOutcome::Success,
+                shallow_scan_project_dir_for_nonempty_file_name_match(&r, manifest_path)
+            );
+        }
+        #[test]
+        fn search_manifest_and_workspace_dir_for_nonempty_file_name_match_file_lifecycle(
+                ref file_name in "[a-zA-Z0-9]+",
+                ref in_kid in any::<bool>()) {
+
+            let base_dir = tempdir().expect("Failed to make a temp dir");
+            let workspace_manifest_path = base_dir.path().join("Cargo.toml");
+            create_workspace_cargo_toml(&workspace_manifest_path);
+            let subproject_dir = base_dir.path().join("kid");
+            let child_manifest_path = subproject_dir.join("Cargo.toml");
+            create_dir_all(&subproject_dir).expect("Could not create subproject dir");
+            write_package_cargo_toml(&subproject_dir, None);
+            write_clean_src_main_file(&subproject_dir);
+            let mut s = String::from("^");
+            s.push_str(file_name);
+            let r = Regex::new(&s).expect("Could not make trivial prefix regex");
+            let metadata = Some(metadata(Some(&child_manifest_path)).expect("Could not get test cargo manifest"));
+
+            assert_eq!(
+                RuleOutcome::Failure,
+                search_manifest_and_workspace_dir_for_nonempty_file_name_match(&r, &workspace_manifest_path, &metadata)
+            );
+            assert_eq!(
+                RuleOutcome::Failure,
+                search_manifest_and_workspace_dir_for_nonempty_file_name_match(&r, &child_manifest_path, &metadata)
+            );
+
+            let target_file_path = if *in_kid {
+                subproject_dir.join(file_name)
+            } else {
+                base_dir.path().join(file_name)
+            };
+            let mut target_file =
+                File::create(&target_file_path).expect("Could not make target file");
+            target_file
+                .write_all(b"Hello, I am a target file.")
+                .expect("Could not write to target file");
+            target_file.sync_all()
+                .expect("Could not sync temp file state initially");
+
+            assert_eq!(
+                RuleOutcome::Success,
+                search_manifest_and_workspace_dir_for_nonempty_file_name_match(&r, &child_manifest_path, &metadata)
+            );
+
+            assert_eq!(
+                if *in_kid { RuleOutcome::Failure } else { RuleOutcome::Success },
+                search_manifest_and_workspace_dir_for_nonempty_file_name_match(&r, &workspace_manifest_path, &metadata)
+            );
+        }
+    }
 
     #[test]
-    fn file_present_follows_file_lifecycle() {
-        let dir = TempDir::new().unwrap();
+    fn shallow_scan_follows_file_lifecycle() {
+        let dir = tempdir().expect("Failed to make a temp dir");
         let file_path = dir.path().join("foo.txt");
-        let r = Regex::new(r"^fo").unwrap();
+        let r = Regex::new(r"^fo").expect("Could not make trivial prefix regex");
         let manifest_path = &dir.path().join("Cargo.toml");
         assert_eq!(
             RuleOutcome::Failure,
             shallow_scan_project_dir_for_nonempty_file_name_match(&r, manifest_path)
         );
 
-        let mut f = File::create(&file_path).unwrap();
-        f.sync_all().unwrap();
+        let mut f = File::create(&file_path).expect("Could not create temp file");
+        f.sync_all()
+            .expect("Could not sync temp file state initially");
 
         assert_eq!(
             RuleOutcome::Failure,
             shallow_scan_project_dir_for_nonempty_file_name_match(&r, manifest_path)
         );
 
-        f.write_all(b"Hello, world!").unwrap();
-        f.sync_all().unwrap();
+        f.write_all(b"Hello, world!")
+            .expect("Could not write to temp file");
+        f.sync_all()
+            .expect("Could not sync temp file state after write");
         assert_eq!(
             RuleOutcome::Success,
             shallow_scan_project_dir_for_nonempty_file_name_match(&r, manifest_path)
@@ -130,7 +213,4 @@ mod tests {
 
         let _ = dir.close();
     }
-
-    // TODO - force an IO error to observe the Undetermined variant
-    // TODO - explicitly handle directories vs non-directories
 }

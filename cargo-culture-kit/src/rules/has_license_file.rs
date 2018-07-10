@@ -34,11 +34,9 @@ impl Rule for HasLicenseFile {
 mod tests {
     use super::super::test_support::*;
     use super::*;
-    use std::fs::File;
+    use std::fs::{create_dir_all, File};
     use std::io::Write;
     use tempfile::tempdir;
-
-    // TODO - Test for workspace style project edge cases
 
     #[test]
     fn happy_path() {
@@ -54,6 +52,39 @@ mod tests {
         } = execute_rule_against_project_dir_all_verbosities(dir.path(), &rule);
         assert_eq!(RuleOutcome::Success, verbose.outcome);
         assert_eq!(RuleOutcome::Success, not_verbose.outcome);
+    }
+
+    #[test]
+    fn has_license_file_workspace_project_happy_path() {
+        let base_dir = tempdir().expect("Failed to make a temp dir");
+        create_workspace_cargo_toml(base_dir.path().join("Cargo.toml"));
+        let subproject_dir = base_dir.path().join("kid");
+        create_dir_all(&subproject_dir).expect("Could not create subproject dir");
+        write_package_cargo_toml(&subproject_dir, None);
+        write_clean_src_main_file(&subproject_dir);
+        let mut license_file =
+            File::create(base_dir.path().join("LICENSE")).expect("Could not make target file");
+        license_file
+            .write_all(b"Hello, I am a LICENSE file.")
+            .expect("Could not write to target file");
+        let rule = HasLicenseFile::default();
+
+        {
+            let VerbosityOutcomes {
+                verbose,
+                not_verbose,
+            } = execute_rule_against_project_dir_all_verbosities(base_dir.path(), &rule);
+            assert_eq!(RuleOutcome::Success, verbose.outcome);
+            assert_eq!(RuleOutcome::Success, not_verbose.outcome);
+        }
+        {
+            let VerbosityOutcomes {
+                verbose,
+                not_verbose,
+            } = execute_rule_against_project_dir_all_verbosities(&subproject_dir, &rule);
+            assert_eq!(RuleOutcome::Success, verbose.outcome);
+            assert_eq!(RuleOutcome::Success, not_verbose.outcome);
+        }
     }
 
     #[test]

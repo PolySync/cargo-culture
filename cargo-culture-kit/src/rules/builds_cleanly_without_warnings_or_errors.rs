@@ -184,15 +184,15 @@ fn get_cargo_command() -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::super::test_support::*;
     use super::*;
+    use rules::test_support::*;
     use std::fs::{create_dir_all, File};
     use tempfile::tempdir;
 
     #[test]
     fn builds_cleanly_happy_path_flat_project() {
         let dir = tempdir().expect("Failed to make a temp dir");
-        write_package_cargo_toml(dir.path());
+        write_package_cargo_toml(dir.path(), None);
         write_clean_src_main_file(dir.path());
         let rule = BuildsCleanlyWithoutWarningsOrErrors::default();
         let VerbosityOutcomes {
@@ -206,7 +206,7 @@ mod tests {
     #[test]
     fn builds_cleanly_fails_for_erroneous_main() {
         let dir = tempdir().expect("Failed to make a temp dir");
-        write_package_cargo_toml(dir.path());
+        write_package_cargo_toml(dir.path(), None);
         write_erroneous_src_main_file(dir.path());
         let rule = BuildsCleanlyWithoutWarningsOrErrors::default();
         let VerbosityOutcomes {
@@ -220,7 +220,7 @@ mod tests {
     #[test]
     fn builds_cleanly_fails_for_warningful_main() {
         let dir = tempdir().expect("Failed to make a temp dir");
-        write_package_cargo_toml(dir.path());
+        write_package_cargo_toml(dir.path(), None);
         write_warningful_src_main_file(dir.path());
         let rule = BuildsCleanlyWithoutWarningsOrErrors::default();
         let VerbosityOutcomes {
@@ -234,25 +234,10 @@ mod tests {
     #[test]
     fn builds_cleanly_happy_path_workspace_project() {
         let base_dir = tempdir().expect("Failed to make a temp dir");
-        {
-            let workspace_cargo_path = base_dir.path().join("Cargo.toml");
-            let mut workspace_cargo_file =
-                File::create(workspace_cargo_path).expect("Could not make workspace Cargo file");
-            workspace_cargo_file
-                .write_all(
-                    br##"
-[workspace]
-
-members = [
-  "kid"
-]
-        "##,
-                )
-                .expect("Could not write to workspace Cargo.toml file");
-        }
+        create_workspace_cargo_toml(base_dir.path().join("Cargo.toml"));
         let subproject_dir = base_dir.path().join("kid");
         create_dir_all(&subproject_dir).expect("Could not create subproject dir");
-        write_package_cargo_toml(&subproject_dir);
+        write_package_cargo_toml(&subproject_dir, None);
         write_clean_src_main_file(&subproject_dir);
         let rule = BuildsCleanlyWithoutWarningsOrErrors::default();
 
@@ -277,25 +262,10 @@ members = [
     #[test]
     fn builds_cleanly_fails_for_workspace_project_with_warningful_main_in_subproject() {
         let base_dir = tempdir().expect("Failed to make a temp dir");
-        {
-            let workspace_cargo_path = base_dir.path().join("Cargo.toml");
-            let mut workspace_cargo_file =
-                File::create(workspace_cargo_path).expect("Could not make workspace Cargo file");
-            workspace_cargo_file
-                .write_all(
-                    br##"
-[workspace]
-
-members = [
-  "kid"
-]
-        "##,
-                )
-                .expect("Could not write to workspace Cargo.toml file");
-        }
+        create_workspace_cargo_toml(base_dir.path().join("Cargo.toml"));
         let subproject_dir = base_dir.path().join("kid");
         create_dir_all(&subproject_dir).expect("Could not create subproject dir");
-        write_package_cargo_toml(&subproject_dir);
+        write_package_cargo_toml(&subproject_dir, None);
         write_warningful_src_main_file(&subproject_dir);
         let rule = BuildsCleanlyWithoutWarningsOrErrors::default();
 
@@ -320,25 +290,10 @@ members = [
     #[test]
     fn builds_cleanly_fails_for_workspace_project_with_erroneous_main_in_subproject() {
         let base_dir = tempdir().expect("Failed to make a temp dir");
-        {
-            let workspace_cargo_path = base_dir.path().join("Cargo.toml");
-            let mut workspace_cargo_file =
-                File::create(workspace_cargo_path).expect("Could not make workspace Cargo file");
-            workspace_cargo_file
-                .write_all(
-                    br##"
-[workspace]
-
-members = [
-  "kid"
-]
-        "##,
-                )
-                .expect("Could not write to workspace Cargo.toml file");
-        }
+        create_workspace_cargo_toml(base_dir.path().join("Cargo.toml"));
         let subproject_dir = base_dir.path().join("kid");
         create_dir_all(&subproject_dir).expect("Could not create subproject dir");
-        write_package_cargo_toml(&subproject_dir);
+        write_package_cargo_toml(&subproject_dir, None);
         write_erroneous_src_main_file(&subproject_dir);
         let rule = BuildsCleanlyWithoutWarningsOrErrors::default();
 
@@ -358,47 +313,6 @@ members = [
             assert_eq!(RuleOutcome::Failure, verbose.outcome);
             assert_eq!(RuleOutcome::Failure, not_verbose.outcome);
         }
-    }
-
-    fn write_package_cargo_toml(project_dir: &Path) {
-        let cargo_path = project_dir.join("Cargo.toml");
-        let mut cargo_file = File::create(cargo_path).expect("Could not make target file");
-        cargo_file
-            .write_all(
-                br##"[package]
-name = "kid"
-version = "0.1.0"
-authors = []
-
-[dependencies]
-
-[dev-dependencies]
-        "##,
-            )
-            .expect("Could not write to Cargo.toml file");
-    }
-
-    fn write_clean_src_main_file(project_dir: &Path) {
-        let src_dir = project_dir.join("src");
-        create_dir_all(&src_dir).expect("Could not create src dir");
-        let file_path = src_dir.join("main.rs");
-        let mut file = File::create(file_path).expect("Could not make target file");
-        file.write_all(
-            br##"//! Sample rust file for testing cargo-culture
-fn hello() { println!("Hello"); }
-
-fn main() { hello(); }
-
-#[cfg(test)]
-mod tests {
-    use super::hello;
-    #[test]
-    fn hello_does_not_panic() {
-        assert_eq!((), hello());
-    }
-}
-        "##,
-        ).expect("Could not write to target file");
     }
 
     fn write_warningful_src_main_file(project_dir: &Path) {

@@ -83,7 +83,7 @@ mod tests {
     #[test]
     fn uses_property_based_test_library_happy_path_flat_project() {
         let dir = tempdir().expect("Failed to make a temp dir");
-        write_package_cargo_toml(dir.path(), "proptest");
+        write_package_cargo_toml(dir.path(), Some("proptest"));
         write_clean_src_main_file(dir.path());
         let rule = UsesPropertyBasedTestLibrary::default();
         let VerbosityOutcomes {
@@ -104,7 +104,7 @@ mod tests {
         #[test]
         fn uses_property_based_test_library_generated(ref name in arb_pbt_dep()) {
             let dir = tempdir().expect("Failed to make a temp dir");
-            write_package_cargo_toml(dir.path(), name);
+            write_package_cargo_toml(dir.path(), Some(name));
             write_clean_src_main_file(dir.path());
             let rule = UsesPropertyBasedTestLibrary::default();
             let VerbosityOutcomes {
@@ -114,27 +114,6 @@ mod tests {
             assert_eq!(RuleOutcome::Success, verbose.outcome);
             assert_eq!(RuleOutcome::Success, not_verbose.outcome);
         }
-    }
-
-    fn write_package_cargo_toml(project_dir: &Path, extra_dev_dependency: &str) {
-        let cargo_path = project_dir.join("Cargo.toml");
-        let mut cargo_file = File::create(cargo_path).expect("Could not make target file");
-        cargo_file
-            .write_all(
-                br##"[package]
-name = "kid"
-version = "0.1.0"
-authors = []
-
-[dependencies]
-
-[dev-dependencies]
-        "##,
-            )
-            .expect("Could not write to Cargo.toml file");
-
-        writeln!(cargo_file, "{} = \"*\"", extra_dev_dependency)
-            .expect("Could not write extra dev dep to Cargo.toml file");
     }
 
     fn write_clean_src_main_file(project_dir: &Path) {

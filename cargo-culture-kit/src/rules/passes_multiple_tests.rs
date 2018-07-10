@@ -107,7 +107,7 @@ mod tests {
             return;
         }
         let dir = tempdir().expect("Failed to make a temp dir");
-        write_package_cargo_toml(dir.path());
+        write_package_cargo_toml(dir.path(), None);
         write_lib_file_with_dummy_tests(dir.path(), 2);
         let rule = PassesMultipleTests::default();
         let VerbosityOutcomes {
@@ -124,7 +124,7 @@ mod tests {
             return;
         }
         let dir = tempdir().expect("Failed to make a temp dir");
-        write_package_cargo_toml(dir.path());
+        write_package_cargo_toml(dir.path(), None);
         write_lib_file_with_dummy_tests(dir.path(), 10);
         let rule = PassesMultipleTests::default();
         let VerbosityOutcomes {
@@ -141,7 +141,7 @@ mod tests {
             return;
         }
         let dir = tempdir().expect("Failed to make a temp dir");
-        write_package_cargo_toml(dir.path());
+        write_package_cargo_toml(dir.path(), None);
         write_lib_file_with_dummy_tests(dir.path(), 0);
         let rule = PassesMultipleTests::default();
         let VerbosityOutcomes {
@@ -158,7 +158,7 @@ mod tests {
             return;
         }
         let dir = tempdir().expect("Failed to make a temp dir");
-        write_package_cargo_toml(dir.path());
+        write_package_cargo_toml(dir.path(), None);
         write_lib_file_with_dummy_tests(dir.path(), 1);
         let rule = PassesMultipleTests::default();
         let VerbosityOutcomes {
@@ -167,24 +167,6 @@ mod tests {
         } = execute_rule_against_project_dir_all_verbosities(dir.path(), &rule);
         assert_eq!(RuleOutcome::Failure, verbose.outcome);
         assert_eq!(RuleOutcome::Failure, not_verbose.outcome);
-    }
-
-    fn write_package_cargo_toml(project_dir: &Path) {
-        let cargo_path = project_dir.join("Cargo.toml");
-        let mut cargo_file = File::create(cargo_path).expect("Could not make target file");
-        cargo_file
-            .write_all(
-                br##"[package]
-name = "kid"
-version = "0.1.0"
-authors = []
-
-[dependencies]
-
-[dev-dependencies]
-        "##,
-            )
-            .expect("Could not write to Cargo.toml file");
     }
 
     fn write_lib_file_with_dummy_tests(project_dir: &Path, num_tests: usize) {
