@@ -18,7 +18,7 @@
 //! use cargo_culture_kit::{check_culture_default, IsSuccess, OutcomeStats};
 //! use std::path::PathBuf;
 //!
-//! let cargo_manifest = PathBuf::from("../cargo-culture/Cargo.toml");
+//! let cargo_manifest = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("Cargo.toml");
 //! let verbose = false;
 //!
 //! let outcomes = check_culture_default(
@@ -40,7 +40,7 @@
 //! HasLicenseFile}; use std::path::PathBuf;
 //!
 //! let rule = HasLicenseFile::default();
-//! let cargo_manifest = PathBuf::from("../cargo-culture/Cargo.toml");
+//! let cargo_manifest = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("Cargo.toml");
 //! let verbose = false;
 //!
 //! let outcomes = check_culture(
@@ -136,12 +136,16 @@ pub enum CheckError {
 /// use cargo_culture_kit::{check_culture_default, IsSuccess, OutcomeStats};
 /// use std::path::PathBuf;
 ///
-/// let cargo_manifest = PathBuf::from("../cargo-culture/Cargo.toml");
+/// let cargo_manifest = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("Cargo.toml");
 /// let verbose = false;
 ///
 /// let outcomes = check_culture_default(
 ///                 cargo_manifest, verbose, &mut std::io::stdout())
 ///     .expect("Unexpected trouble checking culture rules:");
+///
+/// for (description, outcome) in &outcomes {
+///     println!("For this project: {} had an outcome of {:?}", description, outcome);
+/// }
 ///
 /// let stats = OutcomeStats::from(outcomes);
 /// assert!(stats.is_success());
@@ -188,7 +192,7 @@ pub fn check_culture_default<P: AsRef<Path>, W: Write>(
 /// HasLicenseFile}; use std::path::PathBuf;
 ///
 /// let rule = HasLicenseFile::default();
-/// let cargo_manifest = PathBuf::from("../cargo-culture/Cargo.toml");
+/// let cargo_manifest = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("Cargo.toml");
 /// let verbose = false;
 ///
 /// let outcomes = check_culture(cargo_manifest, verbose, &mut
