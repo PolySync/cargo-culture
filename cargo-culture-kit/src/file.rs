@@ -3,18 +3,22 @@ use super::RuleOutcome;
 use cargo_metadata::Metadata as CargoMetadata;
 use regex::Regex;
 use std::convert::From;
+use std::fs::read_dir;
 use std::path::{Path, PathBuf};
 
 pub fn shallow_scan_project_dir_for_nonempty_file_name_match(
     regex: &Regex,
     manifest_file_path: &Path,
 ) -> RuleOutcome {
-    use std::fs::read_dir;
     let project_dir = {
         let mut p = manifest_file_path.to_path_buf();
         p.pop();
         p
     };
+    find_nonempty_child_file(regex, &project_dir)
+}
+
+pub fn find_nonempty_child_file(regex: &Regex, project_dir: &Path) -> RuleOutcome {
     if !project_dir.is_dir() {
         return RuleOutcome::Undetermined;
     }
