@@ -108,8 +108,10 @@ mod tests {
             let mut s = String::from("^");
             s.push_str(file_name);
             let r = Regex::new(&s).expect("Could not make trivial prefix regex");
+            // Ignore false positives regarding the Cargo.toml file
+            prop_assume!(!r.is_match("Cargo.toml"));
             let manifest_path = &dir.path().join("Cargo.toml");
-            assert_eq!(
+            prop_assert_eq!(
                 RuleOutcome::Failure,
                 shallow_scan_project_dir_for_nonempty_file_name_match(&r, manifest_path)
             );
@@ -117,7 +119,7 @@ mod tests {
             let mut f = File::create(&file_path).expect("Could not create temp file");
             f.sync_all()
                 .expect("Could not sync temp file state initially");
-            assert_eq!(
+            prop_assert_eq!(
                 RuleOutcome::Failure,
                 shallow_scan_project_dir_for_nonempty_file_name_match(&r, manifest_path)
             );
@@ -125,7 +127,7 @@ mod tests {
                 .expect("Could not write to temp file");
             f.sync_all()
                 .expect("Could not sync temp file state after write");
-            assert_eq!(
+            prop_assert_eq!(
                 RuleOutcome::Success,
                 shallow_scan_project_dir_for_nonempty_file_name_match(&r, manifest_path)
             );
@@ -146,13 +148,15 @@ mod tests {
             let mut s = String::from("^");
             s.push_str(file_name);
             let r = Regex::new(&s).expect("Could not make trivial prefix regex");
+            // Ignore false positives regarding the Cargo.toml file
+            prop_assume!(!r.is_match("Cargo.toml"));
             let metadata = Some(metadata(Some(&child_manifest_path)).expect("Could not get test cargo manifest"));
 
-            assert_eq!(
+            prop_assert_eq!(
                 RuleOutcome::Failure,
                 search_manifest_and_workspace_dir_for_nonempty_file_name_match(&r, &workspace_manifest_path, &metadata)
             );
-            assert_eq!(
+            prop_assert_eq!(
                 RuleOutcome::Failure,
                 search_manifest_and_workspace_dir_for_nonempty_file_name_match(&r, &child_manifest_path, &metadata)
             );
@@ -170,12 +174,12 @@ mod tests {
             target_file.sync_all()
                 .expect("Could not sync temp file state initially");
 
-            assert_eq!(
+            prop_assert_eq!(
                 RuleOutcome::Success,
                 search_manifest_and_workspace_dir_for_nonempty_file_name_match(&r, &child_manifest_path, &metadata)
             );
 
-            assert_eq!(
+            prop_assert_eq!(
                 if *in_kid { RuleOutcome::Failure } else { RuleOutcome::Success },
                 search_manifest_and_workspace_dir_for_nonempty_file_name_match(&r, &workspace_manifest_path, &metadata)
             );

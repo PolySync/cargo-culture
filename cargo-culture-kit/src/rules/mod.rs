@@ -148,12 +148,7 @@ pub(crate) mod test_support {
         verbose: bool,
     ) -> OutcomeCapture {
         let cargo_manifest_file_path = project_dir.join("Cargo.toml");
-        let metadata = cargo_metadata::metadata(Some(cargo_manifest_file_path.as_ref()))
-            .map_err(|e| {
-                println!("cargo_metadata error: {:?}", e);
-                e
-            })
-            .ok();
+        let metadata = cargo_metadata::metadata(Some(cargo_manifest_file_path.as_ref())).ok();
         let mut print_output: Vec<u8> = Vec::new();
         let outcome = rule.evaluate(RuleContext {
             cargo_manifest_file_path: &cargo_manifest_file_path,
@@ -188,7 +183,11 @@ authors = []
             writeln!(cargo_file, "{} = \"*\"", extra_dev_dependency)
                 .expect("Could not write extra dev dep to Cargo.toml file");
         }
+        cargo_file
+            .sync_all()
+            .expect("Could not sync package Cargo.toml file");
     }
+
     pub fn create_workspace_cargo_toml<P: AsRef<Path>>(workspace_cargo_path: P) {
         let mut workspace_cargo_file =
             File::create(workspace_cargo_path).expect("Could not make workspace Cargo file");
@@ -203,6 +202,9 @@ members = [
         "##,
             )
             .expect("Could not write to workspace Cargo.toml file");
+        workspace_cargo_file
+            .sync_all()
+            .expect("Could not sync workspace Cargo.toml file");
     }
     pub fn write_clean_src_main_file(project_dir: &Path) {
         let src_dir = project_dir.join("src");
@@ -225,5 +227,6 @@ mod tests {
 }
         "##,
         ).expect("Could not write to target file");
+        file.sync_all().expect("Could not sync main.rs file");
     }
 }
