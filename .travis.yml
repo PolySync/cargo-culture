@@ -1,1 +1,13 @@
-# TODO - actually include proper content here
+language: rust
+rust:
+  - stable
+  - beta
+  - nightly
+script:
+  - RUST_BACKTRACE=1 cargo test --verbose --all
+  - RUST_BACKTRACE=1 cargo test --verbose --all --release
+matrix:
+  allow_failures:
+    - rust: nightly
+  fast_finish: true
+cache: cargo
