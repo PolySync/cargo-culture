@@ -90,13 +90,14 @@ mod tests {
             let mut file = File::create(file_path).expect("Could not make target file");
             file.write_all(b"Hello, I am a CI file.")
                 .expect("Could not write to target file");
+            file.sync_all().expect("Could not sync file");
             let rule = HasContinuousIntegrationFile::default();
             let VerbosityOutcomes {
                 verbose,
                 not_verbose,
             } = execute_rule_against_project_dir_all_verbosities(dir.path(), &rule);
-            assert_eq!(RuleOutcome::Success, verbose.outcome);
-            assert_eq!(RuleOutcome::Success, not_verbose.outcome);
+            prop_assert_eq!(RuleOutcome::Success, verbose.outcome);
+            prop_assert_eq!(RuleOutcome::Success, not_verbose.outcome);
         }
 
         #[test]
@@ -108,13 +109,14 @@ mod tests {
             let mut file = File::create(file_path).expect("Could not make target file");
             file.write_all(b"Hello, I am a CI file.")
                 .expect("Could not write to target file");
+            file.sync_all().expect("Could not sync file");
             let rule = HasContinuousIntegrationFile::default();
             let VerbosityOutcomes {
                 verbose,
                 not_verbose,
             } = execute_rule_against_project_dir_all_verbosities(dir.path(), &rule);
-            assert_eq!(RuleOutcome::Failure, verbose.outcome);
-            assert_eq!(RuleOutcome::Failure, not_verbose.outcome);
+            prop_assert_eq!(RuleOutcome::Failure, verbose.outcome);
+            prop_assert_eq!(RuleOutcome::Failure, not_verbose.outcome);
         }
 
         #[test]
@@ -126,13 +128,14 @@ mod tests {
             let mut file = File::create(file_path).expect("Could not make target file");
             file.write_all(b"Hello, I am a CI file.")
                 .expect("Could not write to target file");
+            file.sync_all().expect("Could not sync file");
             let rule = HasContinuousIntegrationFile::default();
             let VerbosityOutcomes {
                 verbose,
                 not_verbose,
             } = execute_rule_against_project_dir_all_verbosities(dir.path(), &rule);
-            assert_eq!(RuleOutcome::Failure, verbose.outcome);
-            assert_eq!(RuleOutcome::Failure, not_verbose.outcome);
+            prop_assert_eq!(RuleOutcome::Failure, verbose.outcome);
+            prop_assert_eq!(RuleOutcome::Failure, not_verbose.outcome);
         }
     }
 

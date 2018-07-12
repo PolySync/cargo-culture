@@ -14,11 +14,13 @@
 //! function in combination with the `Rule`s provided by the
 //! `default_rules()` function.
 //!
-//! ```
+//! ```no_run
 //! use cargo_culture_kit::{check_culture_default, IsSuccess, OutcomeStats};
 //! use std::path::PathBuf;
 //!
-//! let cargo_manifest = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("Cargo.toml");
+//! let cargo_manifest = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+//!         .join("Cargo.toml");
+//!
 //! let verbose = false;
 //!
 //! let outcomes = check_culture_default(
@@ -40,7 +42,9 @@
 //! HasLicenseFile}; use std::path::PathBuf;
 //!
 //! let rule = HasLicenseFile::default();
-//! let cargo_manifest = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("Cargo.toml");
+//! let cargo_manifest = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+//!         .join("Cargo.toml");
+//!
 //! let verbose = false;
 //!
 //! let outcomes = check_culture(
@@ -132,11 +136,13 @@ pub enum CheckError {
 ///
 /// # Examples
 ///
-/// ```
+/// ```no_run
 /// use cargo_culture_kit::{check_culture_default, IsSuccess, OutcomeStats};
 /// use std::path::PathBuf;
 ///
-/// let cargo_manifest = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("Cargo.toml");
+/// let cargo_manifest = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+///         .join("Cargo.toml");
+///
 /// let verbose = false;
 ///
 /// let outcomes = check_culture_default(
@@ -144,7 +150,9 @@ pub enum CheckError {
 ///     .expect("Unexpected trouble checking culture rules:");
 ///
 /// for (description, outcome) in &outcomes {
-///     println!("For this project: {} had an outcome of {:?}", description, outcome);
+///     println!(
+///              "For this project: {} had an outcome of {:?}",
+///              description, outcome);
 /// }
 ///
 /// let stats = OutcomeStats::from(outcomes);
@@ -192,7 +200,9 @@ pub fn check_culture_default<P: AsRef<Path>, W: Write>(
 /// HasLicenseFile}; use std::path::PathBuf;
 ///
 /// let rule = HasLicenseFile::default();
-/// let cargo_manifest = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("Cargo.toml");
+/// let cargo_manifest = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+///         .join("Cargo.toml");
+///
 /// let verbose = false;
 ///
 /// let outcomes = check_culture(cargo_manifest, verbose, &mut

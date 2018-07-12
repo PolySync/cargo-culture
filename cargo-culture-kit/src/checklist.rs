@@ -82,8 +82,6 @@ pub fn find_extant_culture_file(initial_culture_file: &Path) -> Option<PathBuf> 
 ///
 /// Returns a `FilterError::RuleChecklistReadError` error when one of the lines
 /// of the file does not match any of the provided `Rule` descriptions.
-// TODO - probably ought to switch available_rules to be an IntoIterator of
-// some kind to reduce pointless map-to-as_ref-and-collects
 pub fn filter_to_requested_rules_from_checklist_file<'path, 'rules>(
     culture_checklist_file_path: &'path Path,
     available_rules: &'rules [&Rule],
@@ -282,7 +280,10 @@ mod tests {
         assert_eq!(1, filtered_rules.len());
         assert_eq!(
             rule_a.description(),
-            filtered_rules.first().unwrap().description()
+            filtered_rules
+                .first()
+                .expect("Should be at least one thing, per the len")
+                .description()
         );
     }
 

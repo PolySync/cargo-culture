@@ -70,14 +70,13 @@ impl<'p> Iterator for AncestorDirs<'p> {
 mod tests {
     use super::super::test_support::*;
     use super::*;
-    use std::fs::{create_dir_all, File};
-    use std::io::Write;
+    use std::fs::create_dir_all;
     use tempfile::tempdir;
 
     #[test]
     fn not_under_source_control_project_fails() {
         let dir = tempdir().expect("Failed to make a temp dir");
-        write_package_cargo_toml(dir.path());
+        write_package_cargo_toml(dir.path(), None);
         let rule = UnderSourceControl::default();
         let VerbosityOutcomes {
             verbose,
@@ -92,7 +91,7 @@ mod tests {
         let dir = tempdir().expect("Failed to make a temp dir");
         create_dir_all(dir.path().join(".my_unrecognized_vcs"))
             .expect("Failed to make a dummy subdir");
-        write_package_cargo_toml(dir.path());
+        write_package_cargo_toml(dir.path(), None);
         let rule = UnderSourceControl::default();
         let VerbosityOutcomes {
             verbose,
@@ -107,7 +106,7 @@ mod tests {
         for subdir_name in VC_SUBDIRS {
             let dir = tempdir().expect("Failed to make a temp dir");
             create_dir_all(dir.path().join(subdir_name)).expect("Failed to make a named subdir");
-            write_package_cargo_toml(dir.path());
+            write_package_cargo_toml(dir.path(), None);
             let rule = UnderSourceControl::default();
             let VerbosityOutcomes {
                 verbose,
@@ -122,24 +121,12 @@ mod tests {
     fn under_source_control_at_workspace_level_project_succeeds_for_all_hint_subdir() {
         for subdir_name in VC_SUBDIRS {
             let workspace_dir = tempdir().expect("Failed to make a temp dir");
-            let mut workspace_cargo_file = File::create(workspace_dir.path().join("Cargo.toml"))
-                .expect("Could not make target file");
-            workspace_cargo_file
-                .write_all(
-                    br##"
-[workspace]
-
-members = [
-  "kid"
-]
-        "##,
-                )
-                .expect("Could not write to workspace cargo file");
+            create_workspace_cargo_toml(workspace_dir.path().join("Cargo.toml"));
             create_dir_all(workspace_dir.path().join(subdir_name))
                 .expect("Failed to make a named vc subdir");
             let kid_dir = workspace_dir.path().join("kid");
             create_dir_all(&kid_dir).expect("Could not make a kid project dir");
-            write_package_cargo_toml(&kid_dir);
+            write_package_cargo_toml(&kid_dir, None);
             let rule = UnderSourceControl::default();
             let VerbosityOutcomes {
                 verbose,
@@ -148,19 +135,5 @@ members = [
             assert_eq!(RuleOutcome::Success, verbose.outcome);
             assert_eq!(RuleOutcome::Success, not_verbose.outcome);
         }
-    }
-
-    fn write_package_cargo_toml(project_dir: &Path) {
-        let cargo_path = project_dir.join("Cargo.toml");
-        let mut cargo_file = File::create(cargo_path).expect("Could not make target file");
-        cargo_file
-            .write_all(
-                br##"[package]
-name = "kid"
-version = "0.1.0"
-authors = []
-        "##,
-            )
-            .expect("Could not write to Cargo.toml file");
     }
 }

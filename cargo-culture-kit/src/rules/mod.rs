@@ -118,6 +118,8 @@ mod tests {
 pub(crate) mod test_support {
     use super::{Rule, RuleContext, RuleOutcome};
     use cargo_metadata;
+    use std::fs::{create_dir_all, File};
+    use std::io::Write;
     use std::path::Path;
 
     pub struct VerbosityOutcomes {
@@ -146,12 +148,7 @@ pub(crate) mod test_support {
         verbose: bool,
     ) -> OutcomeCapture {
         let cargo_manifest_file_path = project_dir.join("Cargo.toml");
-        let metadata = cargo_metadata::metadata(Some(cargo_manifest_file_path.as_ref()))
-            .map_err(|e| {
-                println!("cargo_metadata error: {:?}", e);
-                e
-            })
-            .ok();
+        let metadata = cargo_metadata::metadata(Some(cargo_manifest_file_path.as_ref())).ok();
         let mut print_output: Vec<u8> = Vec::new();
         let outcome = rule.evaluate(RuleContext {
             cargo_manifest_file_path: &cargo_manifest_file_path,
@@ -163,5 +160,73 @@ pub(crate) mod test_support {
             outcome,
             print_output,
         }
+    }
+
+    pub fn write_package_cargo_toml(project_dir: &Path, extra_dev_dependency: Option<&str>) {
+        let cargo_path = project_dir.join("Cargo.toml");
+        let mut cargo_file = File::create(cargo_path).expect("Could not make target file");
+        cargo_file
+            .write_all(
+                br##"[package]
+name = "kid"
+version = "0.1.0"
+authors = []
+
+[dependencies]
+
+[dev-dependencies]
+        "##,
+            )
+            .expect("Could not write to Cargo.toml file");
+
+        if let Some(extra_dev_dependency) = extra_dev_dependency {
+            writeln!(cargo_file, "{} = \"*\"", extra_dev_dependency)
+                .expect("Could not write extra dev dep to Cargo.toml file");
+        }
+        cargo_file
+            .sync_all()
+            .expect("Could not sync package Cargo.toml file");
+    }
+
+    pub fn create_workspace_cargo_toml<P: AsRef<Path>>(workspace_cargo_path: P) {
+        let mut workspace_cargo_file =
+            File::create(workspace_cargo_path).expect("Could not make workspace Cargo file");
+        workspace_cargo_file
+            .write_all(
+                br##"
+[workspace]
+
+members = [
+  "kid"
+]
+        "##,
+            )
+            .expect("Could not write to workspace Cargo.toml file");
+        workspace_cargo_file
+            .sync_all()
+            .expect("Could not sync workspace Cargo.toml file");
+    }
+    pub fn write_clean_src_main_file(project_dir: &Path) {
+        let src_dir = project_dir.join("src");
+        create_dir_all(&src_dir).expect("Could not create src dir");
+        let file_path = src_dir.join("main.rs");
+        let mut file = File::create(file_path).expect("Could not make target file");
+        file.write_all(
+            br##"//! Sample rust file for testing cargo-culture
+fn hello() { println!("Hello"); }
+
+fn main() { hello(); }
+
+#[cfg(test)]
+mod tests {
+    use super::hello;
+    #[test]
+    fn hello_does_not_panic() {
+        assert_eq!((), hello());
+    }
+}
+        "##,
+        ).expect("Could not write to target file");
+        file.sync_all().expect("Could not sync main.rs file");
     }
 }
