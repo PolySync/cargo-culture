@@ -1,6 +1,6 @@
 [package]
 name = "cargo-culture"
-version = "0.1.0"
+version = "1.0.0"
 authors = ["Zachary Pierce <zpierce@polysync.io>"]
 description = "Tool to check Rust project conventions"
 license = "MIT"
@@ -10,7 +10,7 @@ homepage = "https://github.com/PolySync/cargo-culture"
 categories = ["development-tools"]
 
 [dependencies]
-cargo-culture-kit = { path = "../cargo-culture-kit", version = "0.1.0" }
+cargo-culture-kit = { path = "../cargo-culture-kit", version = "1.0.0" }
 failure = "0.1"
 structopt = "0.2"
 
