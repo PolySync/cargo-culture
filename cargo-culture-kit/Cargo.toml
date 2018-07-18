@@ -1,6 +1,6 @@
 [package]
 name = "cargo-culture-kit"
-version = "0.1.0"
+version = "1.0.0"
 authors = ["ZackPierce <zacharypierce@gmail.com>"]
 description = "Library for writing tools that check Rust project conventions"
 license = "MIT"

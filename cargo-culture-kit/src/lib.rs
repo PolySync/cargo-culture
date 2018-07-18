@@ -338,11 +338,32 @@ impl IsSuccess for OutcomesByDescription {
     fn is_success(&self) -> bool {
         OutcomeStats::from(self).is_success()
     }
+
+    fn assert_success(&self) {
+        assert!(self.len() > 0, "OutcomesByDescription::len() should be > 0 to count as a success");
+        for (description, outcome) in self {
+            assert_eq!(&RuleOutcome::Success, outcome,
+                       "The rule \"{}\" was not a success, but instead was {:?}",
+                       description, outcome)
+        }
+    }
 }
 
 impl IsSuccess for OutcomeStats {
     fn is_success(&self) -> bool {
         RuleOutcome::from(self) == RuleOutcome::Success
+    }
+
+    fn assert_success(&self) {
+        assert_eq!(0, self.fail_count,
+                   "OutcomeStats::fail_count was {}, which counts as not a success",
+                   self.fail_count);
+        assert_eq!(0, self.undetermined_count,
+                   "OutcomeStats::undetermined_count was {}, which counts as not a success",
+                   self.undetermined_count);
+        assert!(self.success_count > 0,
+                   "OutcomeStats::success_count was {}, which counts as not a success",
+                   self.success_count);
     }
 }
 
@@ -554,4 +575,113 @@ mod tests {
         };
         let _ = IsProjectAtALuckyTime::default().evaluate(context);
     }
+
+    #[test]
+    fn rule_outcome_assert_success_success() {
+        RuleOutcome::Success.assert_success();
+    }
+
+    #[test]
+    #[should_panic]
+    fn rule_outcome_assert_success_failure() {
+        RuleOutcome::Failure.assert_success();
+    }
+
+    #[test]
+    #[should_panic]
+    fn rule_outcome_assert_success_undetermined() {
+        RuleOutcome::Undetermined.assert_success();
+    }
+
+    #[test]
+    fn outcome_stats_assert_success_success() {
+        OutcomeStats {
+            success_count: 1,
+            fail_count: 0,
+            undetermined_count: 0
+        }.assert_success();
+    }
+
+    #[test]
+    #[should_panic]
+    fn outcome_stats_assert_success_all_zero_failure() {
+        OutcomeStats {
+            success_count: 0,
+            fail_count: 0,
+            undetermined_count: 0
+        }.assert_success();
+    }
+
+    #[test]
+    #[should_panic]
+    fn outcome_stats_assert_success_any_fail_count_failure() {
+        OutcomeStats {
+            success_count: 1,
+            fail_count: 1,
+            undetermined_count: 0
+        }.assert_success();
+    }
+
+    #[test]
+    #[should_panic]
+    fn outcome_stats_assert_success_any_undetermined_count_failure() {
+        OutcomeStats {
+            success_count: 1,
+            fail_count: 0,
+            undetermined_count: 1
+        }.assert_success();
+    }
+
+    #[test]
+    #[should_panic]
+    fn outcome_stats_assert_success_both_fail_and_undetermined_failure() {
+        OutcomeStats {
+            success_count: 1,
+            fail_count: 1,
+            undetermined_count: 1
+        }.assert_success();
+    }
+
+    #[test]
+    fn outcomes_by_description_assert_success_minimal_success() {
+        let mut outcomes = OutcomesByDescription::new();
+        outcomes.insert("A".to_owned(), RuleOutcome::Success);
+        outcomes.assert_success();
+    }
+
+    #[test]
+    #[should_panic]
+    fn outcomes_by_description_assert_success_empty_failure() {
+        let outcomes = OutcomesByDescription::new();
+        outcomes.assert_success();
+    }
+
+    #[test]
+    #[should_panic]
+    fn outcomes_by_description_assert_success_any_failure_failure() {
+        let mut outcomes = OutcomesByDescription::new();
+        outcomes.insert("A".to_owned(), RuleOutcome::Success);
+        outcomes.insert("B".to_owned(), RuleOutcome::Failure);
+        outcomes.assert_success();
+    }
+
+    #[test]
+    #[should_panic]
+    fn outcomes_by_description_assert_success_any_undetermined_failure() {
+        let mut outcomes = OutcomesByDescription::new();
+        outcomes.insert("A".to_owned(), RuleOutcome::Success);
+        outcomes.insert("B".to_owned(), RuleOutcome::Undetermined);
+        outcomes.assert_success();
+    }
+
+    #[test]
+    #[should_panic]
+    fn outcomes_by_description_assert_success_both_failure_and_undetermined_failure() {
+        let mut outcomes = OutcomesByDescription::new();
+        outcomes.insert("A".to_owned(), RuleOutcome::Success);
+        outcomes.insert("B".to_owned(), RuleOutcome::Undetermined);
+        outcomes.insert("C".to_owned(), RuleOutcome::Failure);
+        outcomes.assert_success();
+    }
+
 }
